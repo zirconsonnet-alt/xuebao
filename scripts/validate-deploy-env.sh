@@ -22,15 +22,36 @@ is_placeholder() {
 
 load_env() {
   [ -f "$ENV_FILE" ] || fail ".env not found. Copy .env.example to .env and fill required values."
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
+}
+
+read_env_value() {
+  name="$1"
+  default="${2:-}"
+  awk -v key="$name" -v default="$default" '
+    BEGIN { value = default }
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    {
+      line = $0
+      sub(/\r$/, "", line)
+      sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+      pos = index(line, "=")
+      if (pos == 0) next
+      name = substr(line, 1, pos - 1)
+      val = substr(line, pos + 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+      if (name == key) {
+        sub(/^[[:space:]]+/, "", val)
+        sub(/[[:space:]]+$/, "", val)
+        value = val
+      }
+    }
+    END { print value }
+  ' "$ENV_FILE"
 }
 
 require_value() {
   name="$1"
-  value="$(eval "printf '%s' \"\${$name:-}\"")"
+  value="$(read_env_value "$name")"
   if is_placeholder "$value"; then
     fail "$name is missing or still uses a placeholder value."
   fi
@@ -43,7 +64,7 @@ require_value XUEBAO_DATA_DIR
 require_value XUEBAO_CONFIG_DIR
 require_value XUEBAO_BACKUP_DIR
 
-case "${XUEBAO_BACKUP_ON_DEPLOY:-true}" in
+case "$(read_env_value XUEBAO_BACKUP_ON_DEPLOY true)" in
   true|false) ;;
   *) fail "XUEBAO_BACKUP_ON_DEPLOY must be true or false." ;;
 esac
