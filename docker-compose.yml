@@ -1,0 +1,16 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: xuebao-bot
+    env_file:
+      - .env
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      LOCALSTORE_USE_CWD: "True"
+    volumes:
+      - ${XUEBAO_DATA_DIR:-./data}:/app/data
+      - ${XUEBAO_CACHE_DIR:-./cache}:/app/cache
+      - ${XUEBAO_CONFIG_DIR:-./config}:/app/config
+    restart: unless-stopped
