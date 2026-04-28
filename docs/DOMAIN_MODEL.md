@@ -1,0 +1,39 @@
+﻿# DOMAIN_MODEL
+- members：member_id PK；统计字段 created_topics/created_activities/voted_topics/joined_activities/published_works
+- activities：activity_id PK；start_time/end_time；status(draft/active/ended/cancelled)；creator_id -> members
+- topics：topic_id PK；proposer_id -> members；created_time
+- participants：PK(user_id, activity_id)；FK -> members/activities
+- activity_applications：application_id PK；creator_id -> members；status；duration
+- applicants：user_id PK；error_count
+- sessions：session_key PK；flow/step/status/version/expires_at/data_json/owner_id
+- audit_logs：audit_id PK；group_id/user_id/action/session_key/result/created_at
+- audit_events：event_id PK；group_id/actor_id/action/subject_type/subject_id/session_key/result/context_json
+- idempotency_keys：idem_key PK；group_id/user_id/action/session_key/created_at
+- idem_key 组成：group_id + action + subject_type + subject_id + session_key + event_id/message_id + actor_user_id
+- vote_records：PK(session_key, user_id)；option_idx/created_at
+- bot_users：user_id PK；qq_uin UNIQUE；status/secret/display_name/last_login_at
+- bot_nonce_uses：PK(bot_id, nonce)；expires_at
+- bot_sessions：session_id PK；user_id -> bot_users；expires_at
+- bot_ranks：user_id PK；rank/mmr/wins/losses
+- 索引
+- activities(start_time, end_time)
+- activities(status, start_time, end_time)
+- participants(activity_id)
+- participants(user_id)
+- topics(proposer_id)
+- activities(creator_id)
+- sessions(owner_id, status, expires_at)
+- audit_events(session_key, created_at)
+- 身份语义
+- member_id/user_id/actor_id/owner_id/creator_id 为同一平台用户标识的不同角色字段
+- 外键执行
+- GroupDatabase 连接后执行 PRAGMA foreign_keys = ON
+- 存量迁移：activity_applications 外键通过重建表补齐
+- 核心不变量
+- INV-001：sessions.session_key 全局唯一（PK）
+- INV-002：vote_records 同一 session_key + user_id 只允许一条（PK）
+- INV-003：idempotency_keys.idem_key 全局唯一（PK）
+- INV-004：participants 同一 user_id + activity_id 只允许一条（PK）
+- INV-005：bot_users.qq_uin 全局唯一（UNIQUE）
+- INV-006：bot_nonce_uses 同一 bot_id + nonce 只允许一条（PK）
+- INV-007：bot_sessions.session_id 全局唯一（PK）

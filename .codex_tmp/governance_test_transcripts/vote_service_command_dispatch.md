@@ -1,0 +1,70 @@
+# VoteService NoneBug 命令分发记录
+
+- `001` 用户 `10001`：`/投票服务`
+- `002` 系统：分发到 `VoteService.service_entry`
+- `003` 用户 `10001`：`/开启投票服务`
+- `004` 系统：分发到 `VoteService.enable_service`
+- `005` 用户 `10001`：`/关闭投票服务`
+- `006` 系统：分发到 `VoteService.disable_service`
+- `007` 用户 `10001`：`/发起议题`
+- `008` 系统：分发到 `VoteService.start_topic_vote`
+- `009` 用户 `10001`：`/发起放逐`
+- `010` 系统：分发到 `VoteService.start_kick_vote`
+- `011` 用户 `10001`：`/发起禁言`
+- `012` 系统：分发到 `VoteService.start_ban_vote`
+- `013` 用户 `10001`：`/发起投票`
+- `014` 系统：分发到 `VoteService.start_general_vote`
+- `015` 用户 `10001`：`/治理初始化`
+- `016` 系统：分发到 `VoteService.initialize_governance`
+- `017` 用户 `10001`：`/同步治理成员`
+- `018` 系统：分发到 `VoteService.sync_governance_members`
+- `019` 用户 `10001`：`/查看治理状态`
+- `020` 系统：分发到 `VoteService.show_governance_status`
+- `021` 用户 `10001`：`/指令用法 测试参数`
+- `022` 系统：分发到 `VoteService.show_command_usage`，参数 `测试参数`
+- `023` 用户 `10001`：`/设置荣誉群主 测试参数`
+- `024` 系统：分发到 `VoteService.set_honor_owner`，参数 `测试参数`
+- `025` 用户 `10001`：`/添加元老 测试参数`
+- `026` 系统：分发到 `VoteService.add_elder`，参数 `测试参数`
+- `027` 用户 `10001`：`/移除元老 测试参数`
+- `028` 系统：分发到 `VoteService.remove_elder`，参数 `测试参数`
+- `029` 用户 `10001`：`/发起荣誉群主选举 测试参数`
+- `030` 系统：分发到 `VoteService.create_honor_owner_election`，参数 `测试参数`
+- `031` 用户 `10001`：`/发起元老选举 测试参数`
+- `032` 系统：分发到 `VoteService.create_elder_election`，参数 `测试参数`
+- `033` 用户 `10001`：`/发起弹劾荣誉群主 测试参数`
+- `034` 系统：分发到 `VoteService.create_honor_owner_impeachment`，参数 `测试参数`
+- `035` 用户 `10001`：`/发起弹劾元老 测试参数`
+- `036` 系统：分发到 `VoteService.create_elder_impeachment`，参数 `测试参数`
+- `037` 用户 `10001`：`/发起重组元老会 测试参数`
+- `038` 系统：分发到 `VoteService.create_elder_reboot`，参数 `测试参数`
+- `039` 用户 `10001`：`/发起紧急防护 测试参数`
+- `040` 系统：分发到 `VoteService.create_emergency_protection`，参数 `测试参数`
+- `041` 用户 `10001`：`/发起正式处分 测试参数`
+- `042` 系统：分发到 `VoteService.create_formal_discipline`，参数 `测试参数`
+- `043` 用户 `10001`：`/日常管理 测试参数`
+- `044` 系统：分发到 `VoteService.daily_management`，参数 `测试参数`
+- `045` 用户 `10001`：`/申请处分复核 测试参数`
+- `046` 系统：分发到 `VoteService.create_formal_discipline_review`，参数 `测试参数`
+- `047` 用户 `10001`：`/发起提案 测试参数`
+- `048` 系统：分发到 `VoteService.create_governance_proposal`，参数 `测试参数`
+- `049` 用户 `10001`：`/审查提案 测试参数`
+- `050` 系统：分发到 `VoteService.review_governance_proposal`，参数 `测试参数`
+- `051` 用户 `10001`：`/补正提案 测试参数`
+- `052` 系统：分发到 `VoteService.correct_governance_proposal`，参数 `测试参数`
+- `053` 用户 `10001`：`/申请提案复核 测试参数`
+- `054` 系统：分发到 `VoteService.request_governance_proposal_review`，参数 `测试参数`
+- `055` 用户 `10001`：`/指定临时代理 测试参数`
+- `056` 系统：分发到 `VoteService.designate_temporary_proxy`，参数 `测试参数`
+- `057` 用户 `10001`：`/发起职权争议表决 测试参数`
+- `058` 系统：分发到 `VoteService.create_vacancy_dispute_vote`，参数 `测试参数`
+- `059` 用户 `10001`：`/联署治理案件 测试参数`
+- `060` 系统：分发到 `VoteService.support_governance_case`，参数 `测试参数`
+- `061` 用户 `10001`：`/推进治理案件 测试参数`
+- `062` 系统：分发到 `VoteService.advance_governance_case`，参数 `测试参数`
+- `063` 用户 `10001`：`/查看治理案件`
+- `064` 系统：分发到 `VoteService.list_governance_cases`
+- `065` 用户 `10001`：`/治理禁言 测试参数`
+- `066` 系统：分发到 `VoteService.governance_ban`，参数 `测试参数`
+- `067` 用户 `10001`：`/治理放逐 测试参数`
+- `068` 系统：分发到 `VoteService.governance_kick`，参数 `测试参数`

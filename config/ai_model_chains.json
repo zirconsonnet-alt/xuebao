@@ -1,0 +1,14 @@
+{
+  "llm_models": [
+    "deepseek-ai/DeepSeek-V3.2",
+    "ZhipuAI/GLM-5",
+    "MiniMax/MiniMax-M2.5",
+    "ZhipuAI/GLM-4.7-Flash"
+  ],
+  "vision_models": [
+    "moonshotai/Kimi-K2.5"
+  ],
+  "image_generation_models": [
+    "Tongyi-MAI/Z-Image-Turbo"
+  ]
+}

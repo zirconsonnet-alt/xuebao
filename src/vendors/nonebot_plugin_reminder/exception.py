@@ -1,0 +1,2 @@
+class SystemExitException(Exception):
+    pass

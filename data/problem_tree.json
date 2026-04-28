@@ -1,0 +1,96 @@
+{
+  "title": "您是否遇到以下问题：",
+  "is_leaf": false,
+  "children": {
+    "1": {
+      "title": "认知障碍",
+      "is_leaf": false,
+      "children": {
+        "1": {
+          "title": "缺乏意义感",
+          "is_leaf": false,
+          "solution": ""
+        },
+        "2": {
+          "title": "目标问题",
+          "is_leaf": false,
+          "children": {
+            "1": {
+              "title": "目标模糊",
+              "is_leaf": true,
+              "solution": ""
+            },
+            "2": {
+              "title": "目标过量",
+              "is_leaf": true,
+              "solution": ""
+            }
+          }
+        },
+        "3": {
+          "title": "信念消极",
+          "is_leaf": false,
+          "children": {
+            "1": {
+              "title": "固定型思维",
+              "is_leaf": true,
+              "solution": "番茄工作法：\n1. 25分钟专注+5分钟休息\n2. 关闭通知\n3. 使用白噪音"
+            },
+            "2": {
+              "title": "低自我效能感",
+              "is_leaf": true,
+              "solution": "分段工作法：\n1. 每45分钟活动5分钟\n2. 补充水分和坚果\n3. 深呼吸练习"
+            },
+            "3": {
+              "title": "冒充者综合征",
+              "is_leaf": true,
+              "solution": "分段工作法：\n1. 每45分钟活动5分钟\n2. 补充水分和坚果\n3. 深呼吸练习"
+            }
+          }
+        },
+        "4": {
+          "title": "结果焦虑",
+          "is_leaf": true,
+          "solution": ""
+        },
+        "5": {
+          "title": "兴趣缺失",
+          "is_leaf": true,
+          "solution": ""
+        }
+      }
+    },
+    "2": {
+      "title": "情感障碍",
+      "is_leaf": false,
+      "children": {
+        "1": {
+          "title": "拖延问题",
+          "is_leaf": true,
+          "solution": "两分钟法则：\n1. 立即执行两分钟内能完成的任务\n2. 分解大任务\n3. 设置公开截止日"
+        },
+        "2": {
+          "title": "缺乏动力",
+          "is_leaf": true,
+          "solution": "微习惯策略：\n1. 每天从最小行动开始\n2. 记录成就清单\n3. 寻找问责伙伴"
+        }
+      }
+    },
+    "3": {
+      "title": "情绪相关问题",
+      "is_leaf": false,
+      "children": {
+        "1": {
+          "title": "焦虑情绪",
+          "is_leaf": true,
+          "solution": "478呼吸法：\n1. 吸气4秒\n2. 屏息7秒\n3. 呼气8秒，重复5次"
+        },
+        "2": {
+          "title": "情绪低落",
+          "is_leaf": true,
+          "solution": "行为激活：\n1. 15分钟有氧运动\n2. 记录三件好事\n3. 社交连接"
+        }
+      }
+    }
+  }
+}

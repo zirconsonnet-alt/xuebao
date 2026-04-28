@@ -1,0 +1,20 @@
+{
+  "考研倒计时": {
+    "type": "daily",
+    "schedule": "08:00",
+    "message": "func:postgraduate_countdown",
+    "enabled": true
+  },
+  "睡前刷牙": {
+    "type": "daily",
+    "schedule": "23:50",
+    "message": "🦷 刷牙时间到！请用电动牙刷仔细清洁牙齿2分钟",
+    "enabled": true
+  },
+  "睡前补充": {
+    "type": "daily",
+    "schedule": "00:00",
+    "message": "💤 睡前补充时间！请服用：\n1颗褪黑素软糖\n2颗伽马氨基丁酸糖果",
+    "enabled": true
+  }
+}

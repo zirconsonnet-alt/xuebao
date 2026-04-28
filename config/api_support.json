@@ -1,0 +1,30 @@
+{
+  "bot_api": {
+    "sign_tolerance_seconds": 60,
+    "nonce_ttl_seconds": 300,
+    "session_ttl_seconds": 604800,
+    "cookie_secure": true,
+    "cookie_name": "session"
+  },
+  "codex_bridge": {
+    "command": [
+      "codex",
+      "-a",
+      "never",
+      "-s",
+      "workspace-write",
+      "exec",
+      "--skip-git-repo-check",
+      "--color",
+      "never"
+    ],
+    "workdir": "I:\\Projects",
+    "timeout_seconds": 1800,
+    "max_concurrent_jobs": 1,
+    "result_max_chars": 4000,
+    "history_limit": 5,
+    "allowed_user_ids": [],
+    "allowed_group_ids": [],
+    "at_sender_in_group": true
+  }
+}

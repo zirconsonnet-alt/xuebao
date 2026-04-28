@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(tree:*)",
+      "Bash(findstr:*)",
+      "Bash(copy:*)",
+      "Bash(cp:*)",
+      "Bash(find:*)"
+    ]
+  }
+}

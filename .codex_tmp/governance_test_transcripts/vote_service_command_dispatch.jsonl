@@ -1,0 +1,68 @@
+{"seq": 1, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/投票服务"}
+{"seq": 2, "role": "system", "group_id": 9527, "action": "VoteService.service_entry", "command": "投票服务", "arg": ""}
+{"seq": 3, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/开启投票服务"}
+{"seq": 4, "role": "system", "group_id": 9527, "action": "VoteService.enable_service", "command": "开启投票服务", "arg": ""}
+{"seq": 5, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/关闭投票服务"}
+{"seq": 6, "role": "system", "group_id": 9527, "action": "VoteService.disable_service", "command": "关闭投票服务", "arg": ""}
+{"seq": 7, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起议题"}
+{"seq": 8, "role": "system", "group_id": 9527, "action": "VoteService.start_topic_vote", "command": "发起议题", "arg": ""}
+{"seq": 9, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起放逐"}
+{"seq": 10, "role": "system", "group_id": 9527, "action": "VoteService.start_kick_vote", "command": "发起放逐", "arg": ""}
+{"seq": 11, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起禁言"}
+{"seq": 12, "role": "system", "group_id": 9527, "action": "VoteService.start_ban_vote", "command": "发起禁言", "arg": ""}
+{"seq": 13, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起投票"}
+{"seq": 14, "role": "system", "group_id": 9527, "action": "VoteService.start_general_vote", "command": "发起投票", "arg": ""}
+{"seq": 15, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/治理初始化"}
+{"seq": 16, "role": "system", "group_id": 9527, "action": "VoteService.initialize_governance", "command": "治理初始化", "arg": ""}
+{"seq": 17, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/同步治理成员"}
+{"seq": 18, "role": "system", "group_id": 9527, "action": "VoteService.sync_governance_members", "command": "同步治理成员", "arg": ""}
+{"seq": 19, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/查看治理状态"}
+{"seq": 20, "role": "system", "group_id": 9527, "action": "VoteService.show_governance_status", "command": "查看治理状态", "arg": ""}
+{"seq": 21, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/指令用法 测试参数"}
+{"seq": 22, "role": "system", "group_id": 9527, "action": "VoteService.show_command_usage", "command": "指令用法", "arg": "测试参数"}
+{"seq": 23, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/设置荣誉群主 测试参数"}
+{"seq": 24, "role": "system", "group_id": 9527, "action": "VoteService.set_honor_owner", "command": "设置荣誉群主", "arg": "测试参数"}
+{"seq": 25, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/添加元老 测试参数"}
+{"seq": 26, "role": "system", "group_id": 9527, "action": "VoteService.add_elder", "command": "添加元老", "arg": "测试参数"}
+{"seq": 27, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/移除元老 测试参数"}
+{"seq": 28, "role": "system", "group_id": 9527, "action": "VoteService.remove_elder", "command": "移除元老", "arg": "测试参数"}
+{"seq": 29, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起荣誉群主选举 测试参数"}
+{"seq": 30, "role": "system", "group_id": 9527, "action": "VoteService.create_honor_owner_election", "command": "发起荣誉群主选举", "arg": "测试参数"}
+{"seq": 31, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起元老选举 测试参数"}
+{"seq": 32, "role": "system", "group_id": 9527, "action": "VoteService.create_elder_election", "command": "发起元老选举", "arg": "测试参数"}
+{"seq": 33, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起弹劾荣誉群主 测试参数"}
+{"seq": 34, "role": "system", "group_id": 9527, "action": "VoteService.create_honor_owner_impeachment", "command": "发起弹劾荣誉群主", "arg": "测试参数"}
+{"seq": 35, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起弹劾元老 测试参数"}
+{"seq": 36, "role": "system", "group_id": 9527, "action": "VoteService.create_elder_impeachment", "command": "发起弹劾元老", "arg": "测试参数"}
+{"seq": 37, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起重组元老会 测试参数"}
+{"seq": 38, "role": "system", "group_id": 9527, "action": "VoteService.create_elder_reboot", "command": "发起重组元老会", "arg": "测试参数"}
+{"seq": 39, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起紧急防护 测试参数"}
+{"seq": 40, "role": "system", "group_id": 9527, "action": "VoteService.create_emergency_protection", "command": "发起紧急防护", "arg": "测试参数"}
+{"seq": 41, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起正式处分 测试参数"}
+{"seq": 42, "role": "system", "group_id": 9527, "action": "VoteService.create_formal_discipline", "command": "发起正式处分", "arg": "测试参数"}
+{"seq": 43, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/日常管理 测试参数"}
+{"seq": 44, "role": "system", "group_id": 9527, "action": "VoteService.daily_management", "command": "日常管理", "arg": "测试参数"}
+{"seq": 45, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/申请处分复核 测试参数"}
+{"seq": 46, "role": "system", "group_id": 9527, "action": "VoteService.create_formal_discipline_review", "command": "申请处分复核", "arg": "测试参数"}
+{"seq": 47, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起提案 测试参数"}
+{"seq": 48, "role": "system", "group_id": 9527, "action": "VoteService.create_governance_proposal", "command": "发起提案", "arg": "测试参数"}
+{"seq": 49, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/审查提案 测试参数"}
+{"seq": 50, "role": "system", "group_id": 9527, "action": "VoteService.review_governance_proposal", "command": "审查提案", "arg": "测试参数"}
+{"seq": 51, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/补正提案 测试参数"}
+{"seq": 52, "role": "system", "group_id": 9527, "action": "VoteService.correct_governance_proposal", "command": "补正提案", "arg": "测试参数"}
+{"seq": 53, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/申请提案复核 测试参数"}
+{"seq": 54, "role": "system", "group_id": 9527, "action": "VoteService.request_governance_proposal_review", "command": "申请提案复核", "arg": "测试参数"}
+{"seq": 55, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/指定临时代理 测试参数"}
+{"seq": 56, "role": "system", "group_id": 9527, "action": "VoteService.designate_temporary_proxy", "command": "指定临时代理", "arg": "测试参数"}
+{"seq": 57, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/发起职权争议表决 测试参数"}
+{"seq": 58, "role": "system", "group_id": 9527, "action": "VoteService.create_vacancy_dispute_vote", "command": "发起职权争议表决", "arg": "测试参数"}
+{"seq": 59, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/联署治理案件 测试参数"}
+{"seq": 60, "role": "system", "group_id": 9527, "action": "VoteService.support_governance_case", "command": "联署治理案件", "arg": "测试参数"}
+{"seq": 61, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/推进治理案件 测试参数"}
+{"seq": 62, "role": "system", "group_id": 9527, "action": "VoteService.advance_governance_case", "command": "推进治理案件", "arg": "测试参数"}
+{"seq": 63, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/查看治理案件"}
+{"seq": 64, "role": "system", "group_id": 9527, "action": "VoteService.list_governance_cases", "command": "查看治理案件", "arg": ""}
+{"seq": 65, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/治理禁言 测试参数"}
+{"seq": 66, "role": "system", "group_id": 9527, "action": "VoteService.governance_ban", "command": "治理禁言", "arg": "测试参数"}
+{"seq": 67, "role": "user", "group_id": 9527, "user_id": 10001, "text": "/治理放逐 测试参数"}
+{"seq": 68, "role": "system", "group_id": 9527, "action": "VoteService.governance_kick", "command": "治理放逐", "arg": "测试参数"}

@@ -1,0 +1,14 @@
+{"seq": 1, "role": "user", "group_id": 9527, "user_id": 20001, "text": "/联署治理案件 42"}
+{"seq": 2, "role": "system", "group_id": 9527, "action": "VoteService.support_governance_case", "command": "联署治理案件", "arg": "42"}
+{"seq": 3, "role": "user", "group_id": 9527, "user_id": 20002, "text": "/联署治理案件 42"}
+{"seq": 4, "role": "system", "group_id": 9527, "action": "VoteService.support_governance_case", "command": "联署治理案件", "arg": "42"}
+{"seq": 5, "role": "user", "group_id": 9527, "user_id": 20003, "text": "/联署治理案件 42"}
+{"seq": 6, "role": "system", "group_id": 9527, "action": "VoteService.support_governance_case", "command": "联署治理案件", "arg": "42"}
+{"seq": 7, "role": "user", "group_id": 9527, "user_id": 20004, "text": "/联署治理案件 42"}
+{"seq": 8, "role": "system", "group_id": 9527, "action": "VoteService.support_governance_case", "command": "联署治理案件", "arg": "42"}
+{"seq": 9, "role": "user", "group_id": 9527, "user_id": 20005, "text": "/联署治理案件 42"}
+{"seq": 10, "role": "system", "group_id": 9527, "action": "VoteService.support_governance_case", "command": "联署治理案件", "arg": "42"}
+{"seq": 11, "role": "user", "group_id": 9527, "user_id": 20006, "text": "/联署治理案件 42"}
+{"seq": 12, "role": "system", "group_id": 9527, "action": "VoteService.support_governance_case", "command": "联署治理案件", "arg": "42"}
+{"seq": 13, "role": "user", "group_id": 9527, "user_id": 20007, "text": "/联署治理案件 42"}
+{"seq": 14, "role": "system", "group_id": 9527, "action": "VoteService.support_governance_case", "command": "联署治理案件", "arg": "42"}
