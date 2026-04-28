@@ -43,15 +43,6 @@ require_value XUEBAO_DATA_DIR
 require_value XUEBAO_CONFIG_DIR
 require_value XUEBAO_BACKUP_DIR
 
-if [ -n "${BOT_API_SECRETS:-}" ]; then
-  if is_placeholder "$BOT_API_SECRETS"; then
-    fail "BOT_API_SECRETS is still a placeholder."
-  fi
-else
-  require_value BOT_API_BOT_ID
-  require_value BOT_API_SECRET
-fi
-
 case "${XUEBAO_BACKUP_ON_DEPLOY:-true}" in
   true|false) ;;
   *) fail "XUEBAO_BACKUP_ON_DEPLOY must be true or false." ;;

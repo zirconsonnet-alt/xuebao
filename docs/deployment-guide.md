@@ -13,9 +13,9 @@ updated_at: "2026-04-29"
 - Linux 服务器。
 - 已安装 Docker Engine 和 Docker Compose plugin。
 - 服务器上已拉取本仓库。
-- 已准备机器人运行所需的真实密钥和配置值。
+- 已准备机器人运行所需的真实配置值。
 
-部署脚本不会自动安装 Docker，也不会写入真实密钥。
+部署脚本不会自动安装 Docker，也不会写入真实配置。
 
 ## 首次部署
 
@@ -25,9 +25,11 @@ updated_at: "2026-04-29"
    cp .env.example .env
    ```
 
-2. 编辑 `.env`，至少替换以下值：
+2. 编辑 `.env`，至少检查以下值：
 
-   - `BOT_API_SECRETS`，或同时填写 `BOT_API_BOT_ID` 与 `BOT_API_SECRET`
+   - `SUPERUSERS`
+   - `COMMAND_START`
+   - 你实际启用功能需要的密钥或配置，例如 `DEEPSEEK_API_KEY`
    - `XUEBAO_DATA_DIR`
    - `XUEBAO_CONFIG_DIR`
    - `XUEBAO_BACKUP_DIR`
