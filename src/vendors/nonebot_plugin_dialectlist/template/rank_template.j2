@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8">
+        <title>
+            在 title 里夹一点私货应该不会被发现吧？——ddl 真是太厉害啦！
+        </title>
+        <link rel="stylesheet" href="./css/style.css">
+    </head>
+    <body>
+        <div class="container">
+            <div class="card glow" >
+                <p class="center_text">话痨排行榜</p>
+            </div>
+
+            <div class="rank_container glow">
+
+                {% for i in users %}
+                <div class="rank_card">
+                    <div class="rank">
+                        <div class="rank_number rank_number_{{ i.user_index }}">{{ i.user_index }}</div>
+                    </div>
+                    <div class="avatar">
+                        <img class="profile" src="{{ cache_path }}/{{ i.user_id }}.jpg"/>
+                    </div>
+                    <div class="rank_card_info">
+                        <h1>{{ i.user_nickname }} {{ i.user_gender }}</h1>
+                        <div class="g-container">
+                            <div class="g-progress" style="width: {{ i.user_proportion }}%"></div>
+                        </div>
+                        <p>{{ i.user_proportion }}%</p>
+                    </div>
+                    <div class="rank">
+                        <div class="rank_number">{{ i.user_bnum }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+
+            </div>
+
+            <div class="card2 glow">
+                <img class="profile2" src="https://q2.qlogo.cn/headimg_dl?dst_uin=1964324406&spec=100"/>
+                <p class="center_text2">Designed By ChenXu233</p>
+            </div>
+        </div>
+    </body>
+</html>

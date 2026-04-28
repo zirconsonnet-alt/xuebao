@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<style>
+{% if font_path %}
+@font-face {
+    font-family: "CardFont";
+    src: url("{{ font_path }}");
+}
+{% endif %}
+
+:root {
+    --card-width: {{ card_width }}px;
+    --page-bg: #f3efe5;
+    --ink-strong: #10243b;
+    --ink-soft: #516072;
+    --panel-bg: rgba(255, 252, 247, 0.86);
+    --panel-outline: rgba(16, 36, 59, 0.10);
+    --accent: #155e75;
+    --accent-soft: rgba(21, 94, 117, 0.12);
+    --success: #1d7a50;
+    --success-soft: rgba(29, 122, 80, 0.13);
+    --warning: #9f5b1d;
+    --warning-soft: rgba(159, 91, 29, 0.14);
+    --danger: #a33b3b;
+    --danger-soft: rgba(163, 59, 59, 0.12);
+    --muted: #6b7280;
+    --muted-soft: rgba(107, 114, 128, 0.12);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 26px;
+    background: transparent;
+    font-family: "CardFont", "Microsoft YaHei", sans-serif;
+    color: var(--ink-strong);
+}
+
+.card-root {
+    width: var(--card-width);
+    min-height: {{ card_min_height }}px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 34px;
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 28%),
+        radial-gradient(circle at 84% 12%, rgba(21, 94, 117, 0.18), transparent 26%),
+        linear-gradient(160deg, #f7f2e9 0%, #efe7d7 46%, #e8edf1 100%);
+    box-shadow:
+        0 30px 90px rgba(16, 36, 59, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.48);
+}
+
+.card-root::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, rgba(16, 36, 59, 0.03) 1px, transparent 1px),
+        linear-gradient(rgba(16, 36, 59, 0.03) 1px, transparent 1px);
+    background-size: 28px 28px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 92%);
+    pointer-events: none;
+}
+
+.card-root::after {
+    content: "";
+    position: absolute;
+    top: -110px;
+    right: -80px;
+    width: 260px;
+    height: 260px;
+    border-radius: 999px;
+    background: radial-gradient(circle, rgba(21, 94, 117, 0.18), transparent 72%);
+    pointer-events: none;
+}
+
+.frame {
+    position: relative;
+    z-index: 1;
+    padding: 28px 30px 26px;
+}
+
+.hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.hero-copy {
+    flex: 1;
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(16, 36, 59, 0.06);
+    color: var(--accent);
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.eyebrow::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--accent), #0f766e);
+    box-shadow: 0 0 0 6px rgba(21, 94, 117, 0.10);
+}
+
+.title {
+    margin: 18px 0 0;
+    font-size: 42px;
+    line-height: 1.1;
+    color: var(--ink-strong);
+}
+
+.subtitle {
+    margin: 12px 0 0;
+    max-width: 620px;
+    font-size: 18px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+}
+
+.badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+    max-width: 260px;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 13px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    background: rgba(16, 36, 59, 0.08);
+    color: var(--ink-strong);
+    border: 1px solid rgba(16, 36, 59, 0.08);
+}
+
+.badge-accent {
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.badge-success {
+    color: var(--success);
+    background: var(--success-soft);
+}
+
+.badge-warning {
+    color: var(--warning);
+    background: var(--warning-soft);
+}
+
+.badge-danger {
+    color: var(--danger);
+    background: var(--danger-soft);
+}
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 14px;
+    margin-top: 22px;
+}
+
+.stat {
+    padding: 16px 18px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(16, 36, 59, 0.08);
+    backdrop-filter: blur(10px);
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.08em;
+}
+
+.stat-value {
+    margin-top: 8px;
+    font-size: 34px;
+    line-height: 1;
+    color: var(--ink-strong);
+}
+
+.sections {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 24px;
+}
+
+.section {
+    padding: 20px 20px 18px;
+    border-radius: 26px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-outline);
+    backdrop-filter: blur(12px);
+}
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.section-title {
+    margin: 0;
+    font-size: 24px;
+    color: var(--ink-strong);
+}
+
+.section-description {
+    margin: 6px 0 0;
+    font-size: 15px;
+    color: var(--ink-soft);
+    line-height: 1.6;
+}
+
+.items {
+    display: grid;
+    gap: 12px;
+}
+
+.items.cols-1 {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.items.cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.items.cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.item {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+    padding: 16px 16px 14px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.64);
+    border: 1px solid rgba(16, 36, 59, 0.08);
+    min-height: 92px;
+}
+
+.item-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(16, 36, 59, 0.92), rgba(21, 94, 117, 0.85));
+    color: #f8fafc;
+    font-size: 18px;
+    font-weight: 700;
+    box-shadow: 0 10px 24px rgba(16, 36, 59, 0.18);
+}
+
+.item-title {
+    margin: 0;
+    font-size: 20px;
+    line-height: 1.25;
+    color: var(--ink-strong);
+}
+
+.item-description {
+    margin: 6px 0 0;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    white-space: pre-line;
+}
+
+.item-meta {
+    margin-top: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgba(16, 36, 59, 0.72);
+}
+
+.item-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    border: 1px solid transparent;
+}
+
+.tone-accent {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: rgba(21, 94, 117, 0.10);
+}
+
+.tone-success {
+    color: var(--success);
+    background: var(--success-soft);
+    border-color: rgba(29, 122, 80, 0.10);
+}
+
+.tone-warning {
+    color: var(--warning);
+    background: var(--warning-soft);
+    border-color: rgba(159, 91, 29, 0.12);
+}
+
+.tone-danger {
+    color: var(--danger);
+    background: var(--danger-soft);
+    border-color: rgba(163, 59, 59, 0.10);
+}
+
+.tone-muted {
+    color: var(--muted);
+    background: var(--muted-soft);
+    border-color: rgba(107, 114, 128, 0.10);
+}
+
+.footer {
+    margin-top: 18px;
+    padding: 16px 18px;
+    border-radius: 22px;
+    background: rgba(16, 36, 59, 0.06);
+    border: 1px solid rgba(16, 36, 59, 0.08);
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+    white-space: pre-line;
+}
+</style>
+</head>
+<body>
+<div class="card-root" data-card-root="true">
+    <div class="frame">
+        <header class="hero">
+            <div class="hero-copy">
+                <div class="eyebrow">Service Panel</div>
+                {% if title %}
+                <h1 class="title">{{ title }}</h1>
+                {% endif %}
+                {% if subtitle %}
+                <p class="subtitle">{{ subtitle }}</p>
+                {% endif %}
+            </div>
+            {% if badges %}
+            <div class="badge-row">
+                {% for badge in badges %}
+                {% set badge_text = badge.text if badge is mapping else badge %}
+                {% set badge_tone = badge.tone if badge is mapping else "accent" %}
+                <span class="badge badge-{{ badge_tone }}">{{ badge_text }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </header>
+
+        {% if stats %}
+        <section class="stats">
+            {% for stat in stats %}
+            <div class="stat">
+                <div class="stat-label">{{ stat.label if stat is mapping else "" }}</div>
+                <div class="stat-value">{{ stat.value if stat is mapping else stat }}</div>
+            </div>
+            {% endfor %}
+        </section>
+        {% endif %}
+
+        {% if sections %}
+        <main class="sections">
+            {% for section in sections %}
+            {% set section_title = section.title if section is mapping else "" %}
+            {% set section_description = section.description if section is mapping else "" %}
+            {% set section_items = section["items"] if section is mapping and "items" in section else [] %}
+            {% set columns = section.columns if section is mapping and section.columns else 1 %}
+            <section class="section">
+                {% if section_title or section_description %}
+                <div class="section-head">
+                    <div>
+                        {% if section_title %}
+                        <h2 class="section-title">{{ section_title }}</h2>
+                        {% endif %}
+                        {% if section_description %}
+                        <p class="section-description">{{ section_description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="items cols-{{ columns }}">
+                    {% for item in section_items %}
+                    {% set item_status_tone = item.status_tone if item is mapping and item.status_tone else "muted" %}
+                    <article class="item">
+                        <div class="item-index">{{ item.index if item is mapping and item.index else loop.index }}</div>
+                        <div>
+                            <h3 class="item-title">{{ item.title if item is mapping else item }}</h3>
+                            {% if item is mapping and item.description %}
+                            <p class="item-description">{{ item.description }}</p>
+                            {% endif %}
+                            {% if item is mapping and item.meta %}
+                            <div class="item-meta">{{ item.meta }}</div>
+                            {% endif %}
+                        </div>
+                        {% if item is mapping and item.status %}
+                        <div class="item-status tone-{{ item_status_tone }}">{{ item.status }}</div>
+                        {% endif %}
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endfor %}
+        </main>
+        {% elif text %}
+        <section class="section">
+            <div class="section-description">{{ text }}</div>
+        </section>
+        {% endif %}
+
+        {% if footer %}
+        <footer class="footer">{{ footer }}</footer>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

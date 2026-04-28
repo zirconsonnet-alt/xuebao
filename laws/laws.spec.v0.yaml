@@ -1,0 +1,4682 @@
+meta:
+  spec_id: xuebao.group_governance.v0
+  title: 群法律可执行规范骨架 v0
+  source_of_truth:
+    file: laws/laws.md
+    version: 群宪法及条例（建议修订稿 v2）
+  status: acceptance_ready_executable_skeleton
+  previous_status: partial_dev_contract
+  revision: v0.2
+  acceptance_baseline_date: 2026-04-23
+  design:
+    - 静态规则与程序工作流分离
+    - 机器可判定规则与人工裁量节点分离
+    - 先记录事件，再投影当前状态
+    - 法律文本优先于现有实现
+  scope:
+    - 规则表
+    - workflow_fsm
+    - human_review_gates
+    - audit_event_catalog
+  non_goals:
+    - 不自动替代事实认定
+    - 不让模型直接作最终裁判
+    - 不在本文件中固化 UI 或命令文案
+
+spec_semantics:
+  document_kind: executable_skeleton
+  verbatim_law_mirror: false
+  law_alignment_level: article_level_consistent_with_source_of_truth
+  acceptance_scope:
+    - 条号引用按“条”级与 source_of_truth 对齐
+    - 本文件显式区分 derived_from_law 与 implementation_only 结构
+    - runtime binding 只允许 existing_runtime、existing_runtime_case_scoped、partial_existing_runtime、planned_runtime
+  origin_tag_legend:
+    derived_from_law: 依据法律条文归纳、标准化或编译得到，不是原文逐字字段
+    implementation_only: 仅为运行时绑定、存储、验证或验收而设，不属于法律原文
+    not_verbatim_from_law: 本字段或区块不是法律文本的逐字镜像
+  section_origin_tags:
+    meta:
+      - implementation_only
+      - not_verbatim_from_law
+    conventions:
+      - derived_from_law
+      - not_verbatim_from_law
+    functions:
+      - derived_from_law
+      - not_verbatim_from_law
+    entities:
+      - implementation_only
+      - not_verbatim_from_law
+    derived_statuses:
+      - derived_from_law
+      - not_verbatim_from_law
+    rule_atoms:
+      - derived_from_law
+      - not_verbatim_from_law
+    threshold_sets:
+      - derived_from_law
+      - not_verbatim_from_law
+    human_review_gates:
+      - implementation_only
+      - not_verbatim_from_law
+    lock_types:
+      - derived_from_law
+      - not_verbatim_from_law
+    side_effect_contracts:
+      - implementation_only
+      - not_verbatim_from_law
+    workflow_fsm:
+      - derived_from_law
+      - not_verbatim_from_law
+    workflow_dev_contracts:
+      - implementation_only
+      - not_verbatim_from_law
+    audit_event_catalog:
+      - implementation_only
+      - not_verbatim_from_law
+    projections:
+      - implementation_only
+      - not_verbatim_from_law
+    invariants:
+      - derived_from_law
+      - not_verbatim_from_law
+
+conventions:
+  article_ref_style: 第X条第Y项
+  percentage_rounding: ceil
+  voting_math:
+    turnout_count_includes:
+      - approve
+      - reject
+      - abstain
+    effective_votes_include:
+      - approve
+      - reject
+    excluded_from_turnout:
+      - duplicate_vote
+      - identity_unverifiable_vote
+      - clearly_invalid_vote
+  interpretation_defaults:
+    rights_sensitive_matters: favorable_to_rights_retention_and_procedure_continuation
+    qualification_restriction_matters: narrow_interpretation
+
+functions:
+  ceil_ratio:
+    source:
+      - 第四条第十项
+      - 附表说明
+    input:
+      - numerator
+      - denominator
+      - ratio
+    output: integer_threshold
+  higher_of:
+    source:
+      - 第三十四条第二至第四款
+      - 第五十条第一至第三款
+    input:
+      - threshold_a
+      - threshold_b
+    output: integer_threshold
+  voter_roster_snapshot:
+    source: 第四条第五项
+    description: 投票公告发出前 12 小时冻结选民名册
+  notice_delivery_deadline:
+    source: 第六十条之一
+    description: 按送达渠道计算视为送达时间
+
+entities:
+  Member:
+    key: member_id
+    attributes:
+      - joined_at
+      - platform_role
+      - is_bot
+      - role_assignments
+      - sanctions
+      - contact_channels
+  VoterRosterSnapshot:
+    key: roster_id
+    attributes:
+      - snapshot_at
+      - total_voting_members
+      - frozen_member_ids
+      - correction_log
+  GovernanceCase:
+    key: case_id
+    subtypes:
+      - ordinary_proposal
+      - honor_owner_election
+      - elder_election
+      - honor_owner_impeachment
+      - elder_impeachment
+      - daily_management
+      - emergency_protection
+      - elder_reboot
+      - formal_discipline
+      - formal_discipline_review
+  Vote:
+    key: vote_id
+    attributes:
+      - roster_snapshot_id
+      - anonymous
+      - choices
+      - opened_at
+      - closed_at
+      - tally
+  Evidence:
+    key: evidence_id
+    attributes:
+      - source_type
+      - source_ref
+      - collected_at
+      - chain_of_custody
+      - privacy_scope
+      - summary
+  Notice:
+    key: notice_id
+    attributes:
+      - channel
+      - sent_at
+      - deemed_served_at
+      - delivery_result
+  GovernanceLock:
+    key: lock_id
+    attributes:
+      - lock_type
+      - target_member_id
+      - source_case_id
+      - active
+      - expires_at
+      - released_at
+  GovernanceEvent:
+    key: event_id
+    attributes:
+      - event_type
+      - group_id
+      - actor_id
+      - subject_id
+      - case_id
+      - payload
+      - created_at
+
+derived_statuses:
+  voting_member:
+    source: 第四条第二项
+    when:
+      all:
+        - joined_days_gte: 7
+        - legal_disenfranchisement: false
+        - obvious_duplicate_account: false
+        - malicious_bot_account: false
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - joined_days_gte
+        - legal_disenfranchisement
+        - malicious_bot_account
+      human_review_required:
+        - obvious_duplicate_account
+  legal_disenfranchisement:
+    source: 第四条第三项
+    when_any:
+      - formal_discipline_restriction_active
+      - impeachment_freeze_active
+      - reboot_freeze_active
+      - temporary_procedural_freeze_explicitly_authorized
+  high_risk_power:
+    source: 第四条第十一项
+    values:
+      - kick_member
+      - mute_over_24h
+      - restrict_vote
+      - restrict_candidacy
+      - delete_or_hide_governance_record
+      - change_bot_critical_permission
+      - dissolve_or_migrate_group
+
+rule_atoms:
+  - id: art_01_group_commonwealth_nature
+    article: 第一条
+    category: global_guard
+    subject: group_constitution
+    when:
+      trigger: governance_legitimacy_or_membership_basis_evaluated
+    then:
+      - treat_group_as_voluntary_public_discussion_and_collaboration_community
+      - forbid_private_or_factional_ownership_claim_over_group
+      - require_governance_legitimacy_to_trace_to_collective_member_authorization
+      - joining_group_implies_notice_and_acceptance_of_group_norms_and_lawful_bylaws
+    deadline: always
+    exceptions: []
+    review_entry: gate_collective_sovereignty_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - governance_actor_type_identified
+      human_review_required:
+        - whether_group_is_being_treated_as_private_or_factional_property
+        - whether_collective_authorization_has_been_bypassed
+
+  - id: art_02_collective_sovereignty
+    article: 第二条
+    category: static_constraint
+    subject: collective_authority
+    when:
+      trigger: governance_authority_claim_or_override_attempt_detected
+    then:
+      - all_voting_members_are_highest_autonomous_subject
+      - all_offices_institutions_and_technical_permissions_remain_bound_by_group_norms
+      - forbid_personal_identity_historical_contribution_technical_control_or_temporary_majority_override
+    deadline: always
+    exceptions: []
+    review_entry: gate_collective_sovereignty_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - office_or_permission_type_identified
+      human_review_required:
+        - whether_claimed_authority_exceeds_group_norms
+        - whether_temporary_majority_is_used_to_break_core_constraints
+
+  - id: art_03_norm_hierarchy
+    article: 第三条
+    category: static_constraint
+    subject: norm_resolution
+    when:
+      trigger: norm_conflict_detected
+    then:
+      - apply_higher_level_norm_first
+      - within_same_level_apply_special_over_general
+      - within_same_level_apply_later_over_earlier
+      - forbid_damage_to_core_guarantees
+    deadline: null
+    exceptions: []
+    review_entry: gate_norm_conflict_core_guarantee
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - level_order
+        - special_vs_general
+        - later_vs_earlier
+      human_review_required:
+        - core_guarantee_damage
+
+  - id: art_04_02_voting_member_eligibility
+    article: 第四条第二项
+    category: derived_status
+    subject: member
+    when:
+      trigger: eligibility_evaluated
+    then:
+      - derive_voting_member_status
+    deadline: before_any_support_or_vote_window
+    exceptions: []
+    review_entry: gate_duplicate_account_determination
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - joined_days_gte_7
+        - legal_disenfranchisement_absent
+      human_review_required:
+        - obvious_duplicate_account_absent
+
+  - id: art_04_05_voter_roster_freeze
+    article: 第四条第五项
+    category: voting_constraint
+    subject: voter_roster
+    when:
+      trigger: vote_notice_published
+    then:
+      - create_roster_snapshot_at_minus_12h
+      - freeze_total_voting_members
+      - prohibit_arbitrary_change_until_vote_end
+    deadline: immediately_on_vote_notice
+    exceptions:
+      - obvious_technical_error
+      - member_voluntary_exit
+      - explicit_correction_required_by_law
+    review_entry: gate_roster_correction_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - snapshot_timestamp
+        - freeze_window
+      human_review_required:
+        - obvious_technical_error
+        - explicit_correction_required_by_law
+
+  - id: art_04_12_procedural_review_scope
+    article: 第四条第十二项
+    category: static_constraint
+    subject: procedural_review
+    when:
+      trigger: proposal_submitted_for_procedural_review
+    then:
+      - only_check_format_completeness
+      - only_check_is_group_matter
+      - only_check_manifest_conflict_with_higher_norm
+      - forbid_rejection_due_to_position_difference
+    deadline: null
+    exceptions: []
+    review_entry: gate_group_matter_scope
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - format_completeness
+      human_review_required:
+        - is_group_matter
+        - manifest_conflict_with_higher_norm
+
+  - id: art_05_basic_member_rights
+    article: 第五条
+    category: rights_rule
+    subject: voting_member
+    when:
+      trigger: governance_action_or_sanction_affecting_member_requested
+    then:
+      - preserve_discussion_and_vote_participation_rights_for_voting_members_except_lawful_restriction
+      - preserve_motion_proposal_emergency_impeachment_and_reboot_initiation_rights_for_voting_members
+      - require_reason_basis_and_record_visibility_for_governance_actions
+      - require_notice_defense_and_review_opportunity_before_and_after_sanction
+      - forbid_retaliation_due_to_view_faction_or_vote_choice
+      - protect_privacy_dignity_and_group_safety
+    deadline: before_restriction_or_sanction_effective
+    exceptions:
+      - lawful_temporary_restriction_or_formal_discipline_or_emergency_measure
+    review_entry: gate_member_basic_rights_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - sanction_notice_and_review_channel_present
+        - governance_record_reference_present
+      human_review_required:
+        - whether_retaliation_exists
+        - whether_privacy_dignity_or_group_safety_has_been_infringed
+        - whether_initiation_right_has_been_improperly_blocked
+
+  - id: art_06_basic_member_duties
+    article: 第六条
+    category: conduct_rule
+    subject: member_conduct
+    when:
+      trigger: member_conduct_evaluated
+    then:
+      - forbid_spam_abuse_harassment_threats_or_organized_pile_on
+      - forbid_privacy_leak_doxxing_phishing_fraud_or_impersonation
+      - forbid_illegal_malware_hate_extreme_violence_or_sexual_harassment_or_platform_prohibited_content
+      - forbid_fake_emergency_abusive_impeachment_malicious_repeat_motion_or_vote_interference
+      - require_respect_for_procedural_results_while_preserving_lawful_objection_channels
+    deadline: always
+    exceptions:
+      - procedural_objection_expressed_through_lawful_channel
+    review_entry: gate_member_basic_duty_match
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - repeated_duplicate_motion_or_vote_interference_detected
+      human_review_required:
+        - whether_conduct_is_abuse_harassment_or_threat
+        - whether_content_is_illegal_or_platform_prohibited
+        - whether_objection_remains_within_procedural_channel
+
+  - id: art_07_rule_basis_required
+    article: 第七条
+    category: global_guard
+    subject: governance_action
+    when:
+      trigger: governance_action_requested
+    then:
+      - require_explicit_rule_basis
+      - require_reason_basis_and_record
+      - allow_review
+    deadline: before_execution
+    exceptions: []
+    review_entry: gate_rule_basis_match
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - record_presence
+      human_review_required:
+        - explicit_rule_basis_match
+
+  - id: art_10_bot_boundary
+    article:
+      - 第十条
+      - 第十条之一
+    category: role_boundary
+    subject: bot_and_platform_custodian
+    when:
+      trigger: platform_control_or_bot_action_requested
+    then:
+      - bot_may_only_do_procedural_judgment_and_technical_execution
+      - platform_custodian_has_no_extra_governance_legitimacy
+      - require_record_for_governance_operations
+    deadline: always
+    exceptions:
+      - platform_limitation_or_external_force_major_risk
+    review_entry: gate_platform_constraint_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - bot_action_logged
+      human_review_required:
+        - external_force_major_risk
+        - reasonable_time_for_handover
+
+  - id: art_08_governance_organs_boundary
+    article: 第八条
+    category: role_boundary
+    subject: governance_organs
+    when:
+      trigger: governance_authority_evaluated
+    then:
+      - all_voting_members_hold_rulemaking_election_and_final_major_decision_power
+      - honor_owner_handles_daily_governance_execution
+      - elder_council_handles_supervision_procedural_review_and_limited_emergency_proxy
+      - bot_is_neutral_technical_executor_only
+      - technical_custodian_has_no_independent_governance_legitimacy
+    deadline: always
+    exceptions:
+      - explicit_bootstrap_or_technical_recovery_override_recorded
+    review_entry: gate_governance_authority_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - office_type_identified
+        - bot_or_platform_custodian_not_treated_as_independent_political_role
+      human_review_required:
+        - whether_action_belongs_to_daily_execution_or_supervision
+        - whether_bootstrap_override_remains_technical_only
+
+  - id: art_09_office_separation
+    article: 第九条
+    category: role_boundary
+    subject: governance_offices
+    when:
+      trigger: office_assignment_or_proxy_authority_evaluated
+    then:
+      - forbid_honor_owner_and_elder_dual_office
+      - forbid_elder_as_honor_owner_proxy_except_explicit_emergency_proxy
+      - ordinary_member_participation_does_not_create_office_status
+      - forbid_technical_control_replacing_governance_procedure
+    deadline: before_role_change_or_proxy_action_effective
+    exceptions:
+      - explicit_emergency_proxy_case
+    review_entry: gate_bootstrap_override_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - no_dual_office_between_honor_owner_and_elder
+        - explicit_emergency_proxy_case_present
+      human_review_required:
+        - whether_action_uses_technical_control_to_replace_procedure
+
+  - id: art_11_honor_owner_authority
+    article: 第十一条
+    category: execution_rule
+    subject: honor_owner
+    when:
+      trigger: honor_owner_action_requested
+    then:
+      - allow_daily_discussion_order_maintenance
+      - allow_execution_of_lawfully_passed_results
+      - allow_temporary_management_for_ordinary_violations
+      - allow_emergency_measure_start_confirmation_review_or_termination
+      - allow_procedural_announcements
+      - forbid_rulemaking_without_vote
+      - forbid_blocking_lawful_impeachment_reboot_election_or_review
+      - forbid_deleting_tampering_or_hiding_key_governance_records
+      - forbid_retaliation_for_member_views_or_votes
+      - forbid_disbanding_transfer_of_control_or_permanent_ban_without_explicit_authorization
+    deadline: before_execution
+    exceptions:
+      - explicit_authorization_from_lawful_case_or_vote
+    review_entry: gate_governance_authority_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - lawful_result_execution
+        - explicit_authorization_present
+      human_review_required:
+        - whether_measure_is_ordinary_or_major
+        - whether_action_constitutes_retaliation
+        - whether_record_tampering_occurred
+
+  - id: art_12_elder_council_authority
+    article: 第十二条
+    category: review_rule
+    subject: elder_council
+    when:
+      trigger: elder_council_action_requested
+    then:
+      - allow_supervision_of_honor_owner_compliance
+      - allow_procedural_review_for_ordinary_matters
+      - allow_complaint_and_review_intake
+      - allow_limited_emergency_proxy_when_honor_owner_absent_or_unresponsive
+      - allow_impeachment_initiation_by_procedure
+      - require_periodic_supervision_summary_publication
+      - forbid_political_preference_veto
+      - forbid_long_delay_of_procedural_review
+      - forbid_daily_governance_orders_without_emergency_basis
+      - forbid_procedural_manipulation_when_self_under_reboot_impeachment_or_conflict
+    deadline: before_resolution_or_proxy_action_effective
+    exceptions:
+      - explicit_emergency_proxy_case
+    review_entry: gate_governance_authority_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - complaint_or_review_request_recorded
+        - emergency_proxy_case_present
+      human_review_required:
+        - whether_review_rejection_is_based_on_political_preference
+        - whether_delay_is_unjustified
+        - whether_proxy_action_exceeds_emergency_basis
+
+  - id: art_13_recusal
+    article: 第十三条
+    category: global_guard
+    subject: officials
+    when:
+      trigger: review_or_adjudication_started
+    then:
+      - require_recusal_if_self_case
+      - require_recusal_if_impeachment_or_permission_change_or_major_conflict
+      - preserve_fact_statement_as_ordinary_member
+    deadline: before_review_or_vote_role_exercised
+    exceptions: []
+    review_entry: gate_conflict_of_interest
+    decidability:
+      overall: human_review_required
+      machine_decidable: []
+      human_review_required:
+        - major_conflict_of_interest
+
+  - id: art_14_proposal_classification
+    article: 第十四条
+    category: static_constraint
+    subject: proposals
+    when:
+      trigger: proposal_created
+    then:
+      - require_exact_proposal_type_classification
+      - route_basic_governance_norm_and_constitutional_amendment_through_rulemaking_workflow
+      - route_temporary_measure_through_explicit_expiry_constraints
+      - route_emergency_motion_through_existing_emergency_workflow
+    deadline: before_procedural_review
+    exceptions: []
+    review_entry: gate_group_matter_scope
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - proposal_type_present
+        - proposal_type_supported
+      human_review_required:
+        - whether_subject_belongs_to_public_group_matter
+
+  - id: art_15_proposal_required_fields
+    article: 第十五条
+    category: static_constraint
+    subject: proposal_payload
+    when:
+      trigger: proposal_submitted
+    then:
+      - require_title
+      - require_proposer_identity
+      - require_purpose_and_reason
+      - require_text_or_measure
+      - require_effective_time_duration_or_expiry
+      - require_high_risk_power_flag
+    deadline: before_procedural_review
+    exceptions: []
+    review_entry: gate_group_matter_scope
+    decidability:
+      overall: machine_decidable
+      machine_decidable:
+        - required_fields_present
+      human_review_required: []
+
+  - id: art_16_ordinary_proposal_review
+    article: 第十六条
+    category: workflow_guard
+    subject: ordinary_proposal
+    when:
+      trigger: ordinary_proposal_submitted
+    then:
+      - council_must_submit_or_request_fix_or_procedural_reject_with_reason
+      - auto_enter_discussion_if_timeout
+      - allow_escalation_after_procedural_reject_if_signature_threshold_met
+    deadline: 48h
+    exceptions: []
+    review_entry: gate_group_matter_scope
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - deadline_timeout
+        - escalation_signature_count
+      human_review_required:
+        - procedural_reject_reason_validity
+
+  - id: art_17_discussion_periods
+    article: 第十七条
+    category: timer_rule
+    subject: proposal_discussion
+    when:
+      trigger: discussion_opened
+    then:
+      - ordinary_proposal_min_12h
+      - basic_governance_norm_min_24h
+      - constitutional_amendment_min_48h
+      - emergency_may_shorten_but_no_long_term_temporary_measure
+    deadline: per_case_type
+    exceptions:
+      - emergency_risk
+    review_entry: gate_emergency_state_confirmation
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - min_discussion_duration_by_type
+      human_review_required:
+        - emergency_risk_exists
+        - temporary_measure_becoming_long_term
+
+  - id: art_18_general_vote_thresholds
+    article: 第十八条
+    category: voting_rule
+    subject: votes
+    when:
+      trigger: vote_closed
+    then:
+      - apply_case_specific_threshold_set
+      - reject_if_turnout_threshold_not_met
+      - publish_math_and_tally
+      - require_anonymous_vote_for_rights_or_office_affecting_matters
+    deadline: immediately_after_vote_close
+    exceptions: []
+    review_entry: gate_vote_validity_review
+    decidability:
+      overall: machine_decidable
+      machine_decidable:
+        - threshold_calculation
+        - anonymity_requirement_by_case_type
+        - tally_publication
+      human_review_required: []
+
+  - id: art_19_proposal_record_and_publication
+    article: 第十九条
+    category: audit_rule
+    subject: proposal_vote_record
+    when:
+      trigger: proposal_vote_closed_or_review_requested
+    then:
+      - record_proposal_text_discussion_vote_window_turnout_and_tally
+      - publish_result_in_group
+      - record_procedural_review_request
+    deadline: immediately_after_vote_close_or_review_request
+    exceptions: []
+    review_entry: gate_vote_validity_review
+    decidability:
+      overall: machine_decidable
+      machine_decidable:
+        - proposal_record_fields_present
+        - tally_and_public_summary_recorded
+        - review_request_recorded
+      human_review_required: []
+
+  - id: art_20_temporary_measure_limit
+    article: 第二十条
+    category: static_constraint
+    subject: temporary_measure
+    when:
+      trigger: temporary_measure_defined_or_extended
+    then:
+      - require_explicit_expiry
+      - max_duration_7d
+      - require_conversion_if_over_7d
+      - forbid_repeat_renewal_to_bypass_formal_rulemaking
+      - forbid_permanent_deprivation_of_basic_rights
+    deadline: before_effective
+    exceptions: []
+    review_entry: gate_bypass_formal_rulemaking
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - explicit_expiry_present
+        - duration_lte_7d
+      human_review_required:
+        - repeated_renewal_for_bypass
+        - permanent_deprivation_of_basic_rights
+
+  - id: art_21_honor_owner_candidate_eligibility
+    article: 第二十一条
+    category: workflow_guard
+    subject: honor_owner_election
+    when:
+      trigger: honor_owner_candidate_nominated
+    then:
+      - require_joined_days_gte_14
+      - require_no_disenfranchisement_or_major_discipline_or_impeachment_freeze
+      - require_explicit_willingness_to_serve_and_accept_supervision
+      - allow_current_elder_only_if_office_separation_will_apply_on_election
+    deadline: before_nomination_publicity_or_ballot_entry
+    exceptions: []
+    review_entry: gate_honor_owner_candidate_commitment_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - joined_days_gte_14
+        - no_active_disenfranchisement_or_candidate_lock
+        - no_impeachment_freeze_lock
+      human_review_required:
+        - willingness_and_supervision_commitment_confirmed
+
+  - id: art_22_honor_owner_nomination_channels
+    article: 第二十二条
+    category: workflow_guard
+    subject: honor_owner_election
+    when:
+      trigger: honor_owner_nomination_submitted
+    then:
+      - allow_self_nomination
+      - allow_joint_recommendation_by_at_least_5_voting_members_or_10_percent_of_all_voting_members
+      - require_joint_recommendation_to_wait_for_candidate_commitment_before_ballot_entry
+      - record_nomination_method_and_supporter_ids
+    deadline: before_nomination_publicity_closes
+    exceptions: []
+    review_entry: gate_honor_owner_candidate_commitment_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - self_nomination_detected
+        - joint_recommendation_threshold_math
+        - supporter_id_list_recorded
+      human_review_required:
+        - candidate_commitment_confirmed_for_joint_recommendation
+
+  - id: art_24_honor_owner_term_and_caretaker
+    article: 第二十四条
+    category: timer_rule
+    subject: honor_owner_term
+    when:
+      trigger: honor_owner_elected_or_term_expired
+    then:
+      - record_term_days_90
+      - allow_reelection
+      - if_term_expires_without_successor_then_mark_caretaker_status
+      - caretaker_scope_only_daily_affairs_and_emergency_safety
+      - caretaker_max_days_7
+      - by_election_must_start_within_caretaker_window
+    deadline:
+      term_length: 90d
+      caretaker_max: 7d
+    exceptions: []
+    review_entry: gate_governance_authority_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - term_days_90_recorded
+        - term_expiry_detected
+        - caretaker_max_days_7
+      human_review_required:
+        - whether_only_daily_and_safety_scope_is_used
+
+  - id: art_25_honor_owner_vacancy_and_proxy
+    article: 第二十五条
+    category: workflow_guard
+    subject: honor_owner_vacancy
+    when:
+      trigger: honor_owner_vacancy_or_repeated_failed_by_election
+    then:
+      - announce_vacancy_within_24h
+      - allow_single_temporary_procedural_proxy_max_7d
+      - require_immediate_by_election_after_vacancy
+      - after_two_failed_by_elections_allow_bot_temporary_autonomy_limited_to_daily_order_and_safety
+      - restart_by_election_within_72h_if_temporary_autonomy_started
+    deadline:
+      vacancy_announcement: 24h
+      proxy_max: 7d
+      autonomy_restart: 72h
+    exceptions: []
+    review_entry: gate_governance_authority_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - vacancy_announcement_recorded
+        - failed_by_election_round_count
+        - autonomy_restart_deadline_recorded
+      human_review_required:
+        - temporary_proxy_selection
+        - whether_dispute_must_go_to_full_voter_vote
+
+  - id: art_26_honor_owner_duty_requirements
+    article: 第二十六条
+    category: governance_duty
+    subject: honor_owner
+    when:
+      trigger: honor_owner_action_or_inaction_reviewed
+    then:
+      - require_timely_response_to_rule_violation_topic_and_emergency_motion
+      - require_accepting_elder_supervision_and_member_review
+      - require_reason_and_record_for_high_risk_operations
+      - require_periodic_governance_summary_publication
+    deadline: continuous
+    exceptions: []
+    review_entry: gate_governance_authority_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - high_risk_action_record_exists
+      human_review_required:
+        - whether_response_is_timely
+        - whether_summary_publication_is_sufficient
+
+  - id: art_27_elder_council_composition
+    article: 第二十七条
+    category: derived_status
+    subject: elder_council
+    when:
+      trigger: council_size_or_term_evaluated
+    then:
+      - constrain_seat_count_to_odd_between_3_and_7
+      - default_to_3_seats_when_no_explicit_basic_governance_norm_sets_5_or_7
+      - record_term_days_90
+      - permit_reelection
+    deadline: before_nomination_publicity_opened
+    exceptions: []
+    review_entry: gate_elder_council_seat_count_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - seat_count_is_odd_and_between_3_and_7
+        - default_size_3_when_no_explicit_override
+        - term_days_90_recorded
+      human_review_required:
+        - whether_basic_governance_norm_explicitly_sets_5_or_7
+
+  - id: art_28_elder_candidate_eligibility
+    article: 第二十八条
+    category: workflow_guard
+    subject: elder_election
+    when:
+      trigger: elder_candidate_nominated
+    then:
+      - require_voting_member_status
+      - require_joined_days_gte_14
+      - require_no_disenfranchisement_or_major_discipline_or_impeachment_freeze
+      - require_recusal_neutrality_commitment
+      - forbid_current_honor_owner_as_candidate
+    deadline: before_nomination_publicity_or_ballot_entry
+    exceptions: []
+    review_entry: gate_elder_candidate_commitment_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - joined_days_gte_14
+        - current_honor_owner_absent
+        - no_active_disenfranchisement_or_candidate_lock
+        - no_impeachment_freeze_lock
+      human_review_required:
+        - neutrality_commitment_confirmed
+        - whether_other_major_discipline_disqualifies
+
+  - id: art_29_elder_election_process
+    article: 第二十九条
+    category: voting_rule
+    subject: elder_election
+    when:
+      trigger: elder_election_vote_or_nomination_window_evaluated
+    then:
+      - require_nomination_publicity_min_24h
+      - allow_each_voter_to_select_no_more_than_seat_count_candidates
+      - elect_top_ranked_candidates_within_seat_count
+      - runoff_if_last_seat_tied
+      - require_turnout_at_least_half_of_all_voting_members
+    deadline: before_result_publication
+    exceptions: []
+    review_entry: gate_vote_validity_review
+    decidability:
+      overall: machine_decidable
+      machine_decidable:
+        - nomination_duration_gte_24h
+        - max_selection_lte_seat_count
+        - ranked_winner_selection
+        - runoff_if_last_seat_tied
+        - turnout_threshold_math
+      human_review_required: []
+
+  - id: art_30_elder_council_decision_thresholds
+    article: 第三十条
+    category: review_rule
+    subject: elder_council
+    when:
+      trigger: elder_council_decision_requested
+    then:
+      - require_participants_gt_half_of_current_members
+      - require_at_least_two_participants
+      - ordinary_matters_require_majority_of_participants
+      - honor_owner_impeachment_or_emergency_proxy_extension_or_high_risk_judgment_require_two_thirds_of_all_current_members
+      - require_reason_and_tally_record
+    deadline: before_resolution_effective
+    exceptions:
+      - recusal_or_vacancy_makes_threshold_impossible_then_escalate_per_art_31
+    review_entry: gate_elder_council_high_risk_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - quorum_threshold_math
+        - special_decision_threshold_math
+        - reason_and_tally_record_present
+      human_review_required:
+        - whether_decision_is_high_risk
+
+  - id: art_31_elder_council_review_deadlines
+    article: 第三十一条
+    category: timer_rule
+    subject: elder_council
+    when:
+      trigger: proposal_complaint_or_review_request_received
+    then:
+      - ordinary_requests_must_be_processed_within_48h
+      - emergency_requests_must_be_responded_within_2h
+      - timeout_counts_as_procedural_dereliction
+      - timeout_must_record_supervision_entry
+      - timeout_must_escalate_by_order_bot_then_other_unrecused_elders_then_honor_owner_then_any_two_voting_members
+    deadline: per_request_type
+    exceptions: []
+    review_entry: gate_elder_council_timeout_fallback_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - deadline_timeout
+        - fallback_signature_floor_2
+      human_review_required:
+        - whether_request_is_emergency
+        - whether_recusal_or_unavailability_exists
+        - whether_next_actor_is_available
+
+  - id: art_32_elder_council_prohibitions
+    article: 第三十二条
+    category: global_guard
+    subject: elder_council
+    when:
+      trigger: elder_council_action_or_review_requested
+    then:
+      - forbid_suppressing_dissent_via_review_power
+      - forbid_disclosing_nonpublic_complaint_information
+      - require_recusal_in_self_or_close_faction_interest_matters
+      - forbid_exercising_daily_governance_power_in_name_of_supervision
+      - forbid_obstructing_lawful_reboot_impeachment_or_election
+    deadline: always
+    exceptions:
+      - emergency_proxy_explicitly_allowed_by_law
+    review_entry: gate_elder_council_prohibition_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - direct_daily_governance_without_explicit_emergency_case
+      human_review_required:
+        - suppressing_dissent
+        - nonpublic_info_disclosure
+        - close_faction_interest
+        - obstruction_of_lawful_procedure
+
+  - id: art_34_impeachment_establishment
+    article: 第三十四条
+    category: workflow_guard
+    subject: honor_owner_impeachment
+    when:
+      trigger: impeachment_motion_submitted
+    then:
+      - verify_signature_threshold_or_council_trigger
+      - verify_basic_format_and_cited_articles
+      - establish_on_public_notice_when_complete
+      - fallback_confirmation_by_unrecused_council_within_6h
+      - deem_established_if_confirmation_times_out
+    deadline: 6h
+    exceptions: []
+    review_entry: gate_signature_identity_and_case_completeness
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - signature_threshold_math
+        - timeout
+        - basic_field_presence
+      human_review_required:
+        - evidence_bundle_completeness
+
+  - id: art_35_impeachment_freeze
+    article: 第三十五条
+    category: lock_rule
+    subject: honor_owner_impeachment
+    when:
+      trigger: impeachment_motion_established
+    then:
+      - apply_lock_honor_owner_powers
+      - preserve_defense_right
+      - preserve_emergency_response_for_objective_safety_risk
+    deadline: immediately
+    exceptions:
+      - objective_safety_risk
+    review_entry: gate_objective_safety_risk_exception
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - lock_application
+      human_review_required:
+        - objective_safety_risk
+
+  - id: art_33_honor_owner_impeachment_reason_catalog
+    article: 第三十三条
+    category: review_rule
+    subject: honor_owner_impeachment
+    when:
+      trigger: honor_owner_impeachment_motion_submitted
+    then:
+      - require_reason_to_match_statutory_catalog
+      - allow_abuse_of_high_risk_power
+      - allow_obstruction_of_election_vote_impeachment_reboot_or_review
+      - allow_retaliation_discrimination_or_serious_dereliction
+      - allow_refusal_of_emergency_review_duty
+      - allow_continuous_7d_unjustified_nonperformance
+      - allow_serious_rule_violation_harming_order_or_safety
+    deadline: before_establishment_review
+    exceptions: []
+    review_entry: gate_impeachment_reason_catalog_match
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - reason_code_present
+      human_review_required:
+        - whether_fact_pattern_matches_catalog
+
+  - id: art_37_honor_owner_impeachment_outcomes
+    article: 第三十七条
+    category: workflow_guard
+    subject: honor_owner_impeachment
+    when:
+      trigger: honor_owner_impeachment_vote_closed
+    then:
+      - if_passed_then_revoke_role_immediately
+      - if_passed_then_start_by_election
+      - if_failed_then_restore_frozen_powers_and_keep_record
+      - allow_daily_management_followup_for_malicious_forged_or_repeated_abusive_impeachment
+    deadline: immediately_after_vote_close
+    exceptions: []
+    review_entry: gate_impeachment_reason_catalog_match
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - vote_result_recorded
+        - by_election_started_or_not_needed
+        - freeze_release_recorded_on_failure
+      human_review_required:
+        - whether_followup_daily_management_should_be_started
+
+  - id: art_38_elder_impeachment_reason_catalog
+    article: 第三十八条
+    category: review_rule
+    subject: elder_impeachment
+    when:
+      trigger: elder_impeachment_motion_submitted
+    then:
+      - require_reason_to_match_statutory_catalog
+      - allow_failure_to_supervise_review_or_respond
+      - allow_abuse_of_emergency_proxy_or_review_power
+      - allow_obstruction_of_lawful_proposal_impeachment_election_or_reboot
+      - allow_privacy_leak_retaliation_or_record_destruction
+      - allow_serious_recusal_violation
+    deadline: before_establishment_review
+    exceptions: []
+    review_entry: gate_impeachment_reason_catalog_match
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - reason_code_present
+      human_review_required:
+        - whether_fact_pattern_matches_catalog
+
+  - id: art_40_41_emergency_definition
+    article:
+      - 第四十条
+      - 第四十一条
+    category: review_rule
+    subject: emergency_state
+    when:
+      trigger: emergency_report_received
+    then:
+      - require_realistic_ongoing_immediate_risk
+      - exclude_mere_view_dispute
+      - exclude_single_finished_emotional_argument
+      - exclude_unverified_accusation_alone
+      - exclude_normal_criticism_of_governance
+    deadline: before_temporary_measure
+    exceptions: []
+    review_entry: gate_emergency_state_confirmation
+    decidability:
+      overall: human_review_required
+      machine_decidable: []
+      human_review_required:
+        - realistic_ongoing_immediate_risk
+
+  - id: art_42_emergency_motion_establishment
+    article: 第四十二条
+    category: workflow_guard
+    subject: emergency_protection
+    when:
+      trigger: emergency_motion_submitted
+    then:
+      - any_member_may_report
+      - establish_if_supported_by_3_voting_members_or_10_percent_of_voting_members
+      - require_target_fact_duration_evidence_requested_measures
+      - allow_bot_minimum_technical_action_for_objective_risk_with_record
+    deadline: immediately
+    exceptions:
+      - objective_robot_spam_or_fraud_or_privacy_leak
+    review_entry: gate_emergency_state_confirmation
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - support_threshold_math
+        - payload_field_presence
+      human_review_required:
+        - objective_risk_exists
+
+  - id: art_43_honor_owner_response
+    article: 第四十三条
+    category: timer_rule
+    subject: emergency_protection
+    when:
+      trigger: emergency_motion_established
+    then:
+      - honor_owner_must_respond_within_2h
+      - if_online_and_explicitly_notified_then_respond_within_30m
+      - council_may_start_proxy_if_no_response_or_refusal_or_conflict
+    deadline:
+      default: 2h
+      expedited: 30m
+    exceptions:
+      - honor_owner_conflict_of_interest
+    review_entry: gate_conflict_of_interest
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - elapsed_time
+        - explicit_notice_recorded
+      human_review_required:
+        - refusal_to_respond
+        - conflict_of_interest
+
+  - id: art_44_46_emergency_measure_limits
+    article:
+      - 第四十四条
+      - 第四十六条
+    category: workflow_guard
+    subject: emergency_measure
+    when:
+      trigger: emergency_measure_requested_or_extended
+    then:
+      - require_necessity_minimum_intervention_reversibility
+      - allow_warning_or_stop_order
+      - allow_single_mute_default_max_6h_absolute_max_24h
+      - allow_temporary_motion_restriction_max_24h
+      - allow_high_risk_power_suspension
+      - allow_temporary_removal_only_for_serious_objective_risk_with_24h_initial_review
+      - require_explicit_expiry
+      - require_honor_owner_review_or_two_thirds_council_once_if_over_24h
+      - require_escalation_if_total_over_48h
+      - require_off_group_statement_channel_if_direct_interest_party_cannot_rejoin
+    deadline:
+      initial_review_for_temporary_removal: 24h
+      over_24h_extension_review: before_extension
+      total_emergency_duration_limit: 48h
+    exceptions:
+      - objective_inability_to_restore_participation
+    review_entry: gate_objective_safety_risk_exception
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - duration_caps
+        - expiry_presence
+        - total_duration_gt_48h
+      human_review_required:
+        - necessity
+        - minimum_intervention
+        - reversibility
+        - objective_inability_to_restore_participation
+
+  - id: art_45_emergency_prohibitions
+    article: 第四十五条
+    category: static_constraint
+    subject: emergency_protection
+    when:
+      trigger: emergency_action_requested
+    then:
+      - forbid_position_suppression
+      - forbid_permanent_sanction
+      - forbid_long_term_governance_change
+      - forbid_obstructing_lawful_procedures
+      - forbid_retaliation_against_motion_proposer
+    deadline: before_execution
+    exceptions: []
+    review_entry: gate_retaliation_review
+    decidability:
+      overall: human_review_required
+      machine_decidable: []
+      human_review_required:
+        - position_suppression
+        - retaliation
+
+  - id: art_47_emergency_post_review
+    article: 第四十七条
+    category: workflow_guard
+    subject: emergency_protection
+    when:
+      trigger: emergency_measure_ended
+    then:
+      - executor_must_submit_report
+      - report_must_include_fact_evidence_basis_measure_duration_review_opinion
+      - allow_member_review_request
+      - if_abuse_confirmed_then_revoke_effects_and_public_correct_and_assign_responsibility
+    deadline: 24h
+    exceptions: []
+    review_entry: gate_emergency_abuse_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - report_submitted_within_24h
+        - report_fields_present
+      human_review_required:
+        - abuse_confirmed
+
+  - id: art_48_reboot_constitutional_remedy_nature
+    article: 第四十八条
+    category: static_constraint
+    subject: elder_reboot
+    when:
+      trigger: reboot_motion_considered
+    then:
+      - treat_reboot_as_constitutional_remedy_for_institutional_breakdown
+      - forbid_using_reboot_as_daily_political_struggle_tool
+      - require_focus_on_overall_representativeness_supervision_failure_or_procedural_closure
+    deadline: before_motion_established
+    exceptions: []
+    review_entry: gate_reboot_institutional_breakdown_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - constitutional_remedy_flag_recorded
+      human_review_required:
+        - whether_reason_is_institutional_not_daily_political_conflict
+
+  - id: art_49_reboot_applicability_catalog
+    article: 第四十九条
+    category: review_rule
+    subject: elder_reboot
+    when:
+      trigger: reboot_motion_submitted
+    then:
+      - require_reason_to_match_statutory_institutional_catalog
+      - allow_long_no_quorum_or_7d_key_procedure_timeout
+      - allow_collective_obstruction_of_lawful_proposal_impeachment_election_reboot_or_review
+      - allow_collective_abuse_of_emergency_proxy_or_review_power
+      - allow_loss_of_representativeness_plus_refusal_to_replenish_or_reelect
+      - allow_other_major_institutional_breakdown_reason
+      - forbid_single_reason_based_only_on_specific_case_disagreement_or_personal_hostility
+    deadline: before_establishment_review
+    exceptions: []
+    review_entry: gate_reboot_institutional_breakdown_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - reboot_reason_code_present
+        - forbidden_daily_conflict_keyword_detected
+      human_review_required:
+        - whether_other_institutional_breakdown_reason_is_sufficient
+
+  - id: art_54_reboot_effects_and_interim_supervision
+    article: 第五十四条
+    category: workflow_guard
+    subject: elder_reboot
+    when:
+      trigger: reboot_motion_passed_or_new_council_failed_twice
+    then:
+      - dissolve_current_council_immediately
+      - revoke_elder_role_but_preserve_ordinary_member_rights_without_extra_sanction
+      - start_new_council_election_within_72h
+      - before_new_council_generated_allow_honor_owner_daily_affairs_only
+      - require_full_voter_temporary_review_for_matters_involving_honor_owner_self_supervision
+      - if_new_council_election_fails_twice_then_shift_supervision_and_review_to_all_voting_members_until_completed
+    deadline:
+      start_new_council_election: 72h
+      collective_supervision_activation: after_second_failed_election
+    exceptions: []
+    review_entry: gate_reboot_institutional_breakdown_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - elder_roles_revoked
+        - new_council_election_started_or_recorded
+        - failed_election_round_count
+        - interim_supervision_mode_recorded
+      human_review_required:
+        - whether_specific_matter_counts_as_honor_owner_self_supervision
+
+  - id: art_50_reboot_establishment
+    article: 第五十条
+    category: workflow_guard
+    subject: elder_reboot
+    when:
+      trigger: reboot_motion_submitted
+    then:
+      - verify_signature_threshold
+      - require_institutional_reason_and_major_facts
+      - establish_on_public_notice_when_complete
+      - fallback_confirmation_by_unrecused_council_or_honor_owner_within_6h
+      - deem_established_if_confirmation_times_out
+    deadline: 6h
+    exceptions: []
+    review_entry: gate_same_major_fact_and_institutional_reason
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - signature_threshold_math
+        - timeout
+        - basic_field_presence
+      human_review_required:
+        - institutional_reason_sufficient
+        - same_major_fact_detection
+
+  - id: art_51_reboot_protection_scope
+    article: 第五十一条
+    category: lock_rule
+    subject: elder_reboot
+    when:
+      trigger: reboot_motion_established
+    then:
+      - prohibit_council_punitive_decisions_against_proposer_endorsers_related_discussion
+      - prohibit_honor_owner_and_bot_from_obstructing_reboot_as_ordinary_management
+      - preserve_objective_safety_risk_handling
+    deadline: immediately
+    exceptions:
+      - objective_safety_risk
+    review_entry: gate_objective_safety_risk_exception
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - protection_lock_activation
+      human_review_required:
+        - punitive_decision
+        - obstruction_as_ordinary_management
+        - objective_safety_risk
+
+  - id: art_52_55_reboot_cooling_and_frequency
+    article:
+      - 第五十二条
+      - 第五十五条
+    category: workflow_guard
+    subject: elder_reboot
+    when:
+      trigger: reboot_motion_established_or_repeated
+    then:
+      - open_min_12h_cooling_period
+      - forbid_final_vote_during_cooling
+      - allow_fact_clarification_and_procedural_questioning
+      - restrict_repeat_motion_within_14d_on_same_major_fact_and_reason
+      - allow_repeat_if_new_major_fact_or_higher_threshold
+      - ignore_malicious_preemptive_repeat_for_exclusion_effect
+      - prefer_regular_reelection_if_term_remaining_lt_7d
+    deadline:
+      cooling_min: 12h
+      repeat_limit_window: 14d
+    exceptions:
+      - new_major_fact
+      - higher_threshold_reached
+      - malicious_preemptive_repeat
+      - council_term_remaining_lt_7d
+    review_entry: gate_same_major_fact_and_institutional_reason
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - cooling_elapsed
+        - term_remaining_lt_7d
+        - threshold_increase_math
+      human_review_required:
+        - same_major_fact
+        - new_major_fact
+        - malicious_preemptive_repeat
+
+  - id: art_56_daily_management_ladder
+    article: 第五十六条
+    category: workflow_guard
+    subject: daily_management
+    when:
+      trigger: ordinary_management_considered
+    then:
+      - prefer_reminder_before_warning_or_restriction
+      - prefer_warning_or_restriction_before_formal_discipline
+      - allow_direct_necessary_measure_for_serious_or_real_safety_risk
+      - require_daily_management_to_stay_within_temporary_light_measures
+    deadline: immediately
+    exceptions:
+      - serious_circumstance
+      - real_safety_risk
+    review_entry: gate_bypass_formal_rulemaking
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - ladder_stage_recorded
+        - escalation_hint_present
+      human_review_required:
+        - whether_direct_jump_is_necessary
+        - whether_real_safety_risk_exists
+
+  - id: art_57_daily_management_sanction_catalog
+    article: 第五十七条
+    category: sanction_rule
+    subject: daily_management
+    when:
+      trigger: daily_management_action_selected
+    then:
+      - allow_reminder_warning_short_mute_motion_restriction
+      - short_mute_general_max_24h
+      - motion_restriction_must_be_temporary_and_recorded
+      - forbid_daily_management_from_directly_imposing_long_mute_remove_member_restrict_vote_or_candidacy
+      - major_sanction_must_redirect_to_formal_or_emergency_process
+    deadline: immediately
+    exceptions:
+      - real_safety_risk_redirected_to_emergency_process
+    review_entry: gate_bypass_formal_rulemaking
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - action_in_catalog
+        - short_mute_duration_lte_24h
+        - forbidden_major_sanction_rejected
+      human_review_required:
+        - whether_motion_restriction_is_still_temporary
+        - whether_escalation_to_formal_is_required
+
+  - id: art_58_evidence_baseline
+    article: 第五十八条
+    category: evidence_rule
+    subject: evidence
+    when:
+      trigger: evidence_submitted_or_reviewed
+    then:
+      - prefer_bot_logs_platform_records_full_chat_logs
+      - require_context_for_screenshots_and_recordings
+      - treat_anonymous_complaint_as_lead_not_alone_basis_for_major_sanction
+      - protect_private_sensitive_evidence
+      - require_minimum_sufficient_summary_to_target
+    deadline: before_major_sanction_vote
+    exceptions:
+      - privacy_or_minor_or_real_world_safety_risk
+    review_entry: gate_evidence_sufficiency_and_privacy
+    decidability:
+      overall: human_review_required
+      machine_decidable: []
+      human_review_required:
+        - source_reliability
+        - context_integrity
+        - minimum_sufficient_summary
+
+  - id: art_59_formal_discipline_scope
+    article: 第五十九条
+    category: sanction_rule
+    subject: formal_discipline
+    when:
+      trigger: formal_discipline_requested
+    then:
+      - formal_discipline_scope_limited_to_long_mute_restrict_vote_restrict_candidacy_remove_member
+      - reminders_warnings_short_mutes_and_motion_restrictions_stay_in_daily_management
+      - real_safety_risk_first_uses_emergency_protection_then_bridge_if_needed
+      - require_scope_catalog_and_summary_to_be_recorded_on_case
+    deadline: immediately
+    exceptions:
+      - temporary_emergency_measure_before_formal_bridge
+    review_entry: gate_bypass_formal_rulemaking
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - requested_sanction_in_formal_scope_catalog
+        - scope_catalog_recorded
+      human_review_required:
+        - whether_escalation_from_daily_management_is_necessary
+        - whether_real_safety_risk_requires_emergency_first
+
+  - id: art_60_formal_discipline_acceptance
+    article: 第六十条
+    category: workflow_guard
+    subject: formal_discipline
+    when:
+      trigger: discipline_application_submitted
+    then:
+      - allow_any_member_submission
+      - require_formal_filing_by_honor_owner_or_council_or_3_voting_members_or_10_percent_voting_members
+      - require_object_fact_time_evidence_cited_articles_requested_sanction
+      - council_handles_procedural_acceptance
+      - direct_group_start_if_council_cannot_act
+      - deemed_accepted_if_no_disposition_within_48h
+      - prohibit_duplicate_case_without_new_fact_or_new_evidence
+    deadline: 48h
+    exceptions:
+      - council_recusal_absence_or_insufficient_number
+    review_entry: gate_same_major_fact_and_institutional_reason
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - filing_threshold_math
+        - timeout
+        - required_fields_present
+      human_review_required:
+        - no_new_fact_or_new_evidence
+        - council_cannot_act
+
+  - id: art_60_1_notice_delivery
+    article: 第六十条之一
+    category: workflow_guard
+    subject: procedural_notice
+    when:
+      trigger: procedural_notice_created
+    then:
+      - deliver_in_priority_order
+      - deem_group_announcement_immediate_if_visible
+      - deem_bot_dm_or_platform_dm_after_6h
+      - deem_agreed_off_group_channel_after_12h
+      - require_at_least_one_contactable_channel_if_removed_or_muted_or_platform_failure
+      - allow_procedure_continue_after_two_feasible_attempts_or_single_feasible_attempt_with_public_note
+      - preserve_followup_statement_and_review_right
+    deadline: per_channel
+    exceptions:
+      - channel_unavailable_due_to_objective_reason
+    review_entry: gate_notice_feasibility_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - deemed_service_time
+        - attempt_count
+      human_review_required:
+        - visibility
+        - feasible_channel
+        - objective_reason
+
+  - id: art_61_defense_window
+    article: 第六十一条
+    category: timer_rule
+    subject: formal_discipline
+    when:
+      trigger: discipline_case_accepted
+    then:
+      - notify_fact_basis_main_evidence_summary_requested_sanction_defense_deadline
+      - set_general_defense_min_12h
+      - set_remove_or_restrict_vote_or_restrict_candidacy_defense_min_24h
+      - allow_target_response_evidence_and_objection
+      - allow_continue_if_target_refuses_or_loses_contact_or_exits_after_recorded_service_and_wait
+    deadline:
+      general: 12h
+      severe_rights_affecting: 24h
+    exceptions:
+      - explicit_waiver_by_target
+    review_entry: gate_notice_feasibility_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - defense_window_duration
+        - waiver_recorded
+      human_review_required:
+        - major_evidence_summary_sufficient
+
+  - id: art_62_evidence_review_for_major_sanction
+    article: 第六十二条
+    category: evidence_rule
+    subject: formal_discipline
+    when:
+      trigger: evidence_review_started
+    then:
+      - require_reviewable_record
+      - require_basic_fact_clarity
+      - require_key_fact_corroboration
+      - forbid_major_sanction_based_only_on_anonymous_or_single_hearsay_or_truncated_material
+      - if_key_fact_unclear_then_no_major_sanction
+    deadline: before_vote_open
+    exceptions: []
+    review_entry: gate_evidence_sufficiency_and_privacy
+    decidability:
+      overall: human_review_required
+      machine_decidable: []
+      human_review_required:
+        - basic_fact_clarity
+        - corroboration
+        - truncated_material_significance
+
+  - id: art_63_formal_discipline_vote
+    article: 第六十三条
+    category: voting_rule
+    subject: formal_discipline
+    when:
+      trigger: discipline_evidence_review_completed
+    then:
+      - require_group_vote_for_major_sanction
+      - forbid_council_final_major_sanction_alone
+      - use_case_specific_thresholds
+      - allow_vote_down_to_lighter_sanction_if_heavier_one_fails
+      - require_anonymous_vote
+    deadline: after_review_complete
+    exceptions: []
+    review_entry: gate_vote_validity_review
+    decidability:
+      overall: machine_decidable
+      machine_decidable:
+        - threshold_calculation
+        - anonymous_vote_required
+        - lighter_sanction_fallback_order
+      human_review_required: []
+
+  - id: art_64_execution_limits
+    article: 第六十四条
+    category: execution_rule
+    subject: formal_discipline
+    when:
+      trigger: discipline_vote_passed
+    then:
+      - decision_must_include_fact_basis_evidence_summary_content_duration_effective_time_review_channel
+      - non_removal_sanctions_require_explicit_duration
+      - long_mute_single_max_30d_normally
+      - restrict_vote_or_candidacy_single_max_90d_normally
+      - require_new_process_for_extension
+      - bot_executes_and_records
+      - publish_summary_without_unnecessary_privacy_leak
+    deadline: immediately_after_vote_result
+    exceptions: []
+    review_entry: gate_privacy_safe_public_summary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - required_decision_fields_present
+        - duration_caps
+      human_review_required:
+        - unnecessary_privacy_leak
+
+  - id: art_65_review_entry
+    article: 第六十五条
+    category: workflow_guard
+    subject: formal_discipline_review
+    when:
+      trigger: review_requested
+    then:
+      - allow_request_by_target_or_3_voting_members_or_10_percent_voting_members
+      - limit_reasons_to_new_evidence_or_key_procedural_error_or_obvious_fact_error_or_manifest_disproportion
+      - council_decides_whether_to_start_review_within_48h
+      - direct_group_start_if_council_cannot_act
+      - deem_started_if_timeout
+      - allow_pause_execution_if_clear_procedural_illegality_or_key_evidence_false
+    deadline: 48h
+    exceptions:
+      - council_recusal_absence_or_insufficient_number
+    review_entry: gate_review_reason_validity
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - signature_threshold_math
+        - timeout
+      human_review_required:
+        - review_reason_validity
+        - manifest_disproportion
+        - key_evidence_false
+
+  - id: art_66_emergency_to_formal_bridge
+    article: 第六十六条
+    category: workflow_guard
+    subject: emergency_and_formal_discipline
+    when:
+      trigger: emergency_measure_extended_or_major_sanction_contemplated
+    then:
+      - convert_to_formal_discipline_if_total_gt_48h
+      - convert_to_formal_discipline_if_planned_major_sanction
+      - reuse_emergency_logs_as_material
+      - still_require_notice_defense_vote_review
+      - credit_temporary_duration_against_same_type_final_sanction
+      - forbid_repeat_extension_to_replace_formal_discipline
+    deadline: immediately_on_threshold_hit
+    exceptions: []
+    review_entry: gate_bypass_formal_rulemaking
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - total_duration_gt_48h
+        - requested_major_sanction_type
+      human_review_required:
+        - repeated_extension_for_bypass
+
+  - id: art_67_interpretation_boundary
+    article: 第六十七条
+    category: global_guard
+    subject: temporary_interpretation
+    when:
+      trigger: temporary_interpretation_used
+    then:
+      - permit_only_to_keep_procedure_running
+      - forbid_new_sanction_types
+      - forbid_expanding_high_risk_powers
+      - forbid_depriving_vote_support_or_candidate_eligibility
+      - forbid_excluding_evidence_review
+      - escalate_rights_sensitive_doubt_to_group_review
+    deadline: as_soon_as_practicable
+    exceptions: []
+    review_entry: gate_temporary_interpretation_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - interpretation_recorded
+      human_review_required:
+        - whether_interpretation_only_keeps_procedure_running
+
+  - id: art_68_revision_boundary
+    article: 第六十八条
+    category: workflow_guard
+    subject: norm_amendment
+    when:
+      trigger: norm_amendment_proposed
+    then:
+      - require_constitutional_amendment_route_if_modifying_general_rules_or_basic_power_structure
+      - forbid_vague_repeal_of_basic_member_rights_checks_and_balances_record_or_review_mechanisms
+      - require_explicit_changed_articles_if_core_institution_is_modified
+      - require_constitutional_amendment_threshold_if_core_institution_changes
+    deadline: before_discussion_opens
+    exceptions: []
+    review_entry: gate_core_norm_amendment_boundary
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - proposal_type_present
+        - threshold_set_selected
+      human_review_required:
+        - whether_changed_scope_reaches_general_rules_or_basic_power_structure
+        - whether_wording_vaguely_cancels_core_guarantees
+
+  - id: art_69_effective_and_non_retroactivity
+    article: 第六十九条
+    category: transition_rule
+    subject: law_regime_transition
+    when:
+      trigger: norm_or_regulation_passed_or_review_requested_for_pre_effective_case
+    then:
+      - require_effective_time_recorded_for_new_norm
+      - prefer_new_rule_when_pre_effective_old_rule_conflicts_after_effective_time
+      - do_not_retroactively_reopen_pre_effective_completed_procedures_by_default
+      - allow_collective_review_only_if_major_procedural_illegality_or_safety_risk
+    deadline: immediately_after_passage_or_before_legacy_review_entry
+    exceptions:
+      - major_procedural_illegality
+      - safety_risk
+    review_entry: gate_non_retroactivity_exception_review
+    decidability:
+      overall: mixed
+      machine_decidable:
+        - effective_time_present
+        - pre_effective_completed_case_detected
+      human_review_required:
+        - whether_exception_reaches_major_procedural_illegality
+        - whether_exception_reaches_safety_risk
+
+threshold_sets:
+  ordinary_proposal:
+    sources:
+      - 第十八条第一项
+      - 第十八条第五项
+      - 第十八条第七项
+    approval:
+      type: approve_gt_reject
+      approve_min_of_turnout: 2/5
+    turnout_min_of_all_voting_members: 1/3
+    min_vote_period: 12h
+    anonymous: false
+  basic_governance_norm:
+    sources:
+      - 第十八条第二项
+      - 第十八条第五项
+      - 第十八条第七项
+    approval:
+      type: approve_gt_reject
+      approve_min_of_turnout: 1/2
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 12h
+    anonymous: false
+  constitutional_amendment:
+    sources:
+      - 第十八条第三项
+      - 第十八条第五项
+      - 第十八条第七项
+    approval:
+      type: approve_gte_effective_votes_2_over_3
+      approve_min_of_turnout: 3/5
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 24h
+    anonymous: false
+  honor_owner_election_single_candidate:
+    sources:
+      - 第二十三条第四项
+      - 第二十三条第六项
+      - 第二十三条第七项
+    approval:
+      type: approve_gt_reject
+      approve_min_of_turnout: 1/2
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 24h
+    anonymous: true
+  honor_owner_election_runoff:
+    sources:
+      - 第二十三条第五项
+      - 第二十三条第六项
+      - 第二十三条第七项
+    approval:
+      type: highest_vote_wins
+      winner_min_of_turnout: 1/2
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 24h
+    anonymous: true
+  elder_election:
+    sources:
+      - 第二十九条
+      - 第十八条第七项
+    approval:
+      type: top_n_by_votes
+      tie_breaker: runoff_if_last_seat_tied
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 12h
+    anonymous: true
+  honor_owner_impeachment:
+    sources:
+      - 第三十六条
+    approval:
+      type: approve_gte_effective_votes_2_over_3
+      approve_min_of_turnout: 3/5
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 24h
+    anonymous: true
+  elder_impeachment:
+    sources:
+      - 第三十九条第五款
+      - 第十八条第七项
+    approval:
+      type: approve_gte_effective_votes_2_over_3
+      approve_min_of_turnout: 3/5
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 12h
+    anonymous: true
+  elder_reboot:
+    sources:
+      - 第五十三条
+    approval:
+      type: approve_gte_effective_votes_2_over_3
+      approve_min_of_turnout: 3/5
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 24h
+    anonymous: true
+  formal_discipline_long_mute:
+    sources:
+      - 第六十三条第二款
+      - 第六十三条第六款
+    approval:
+      type: approve_gt_reject
+      approve_min_of_turnout: 2/5
+    turnout_min_of_all_voting_members: 1/3
+    min_vote_period: 12h
+    anonymous: true
+  formal_discipline_restrict_candidacy:
+    sources:
+      - 第六十三条第三款
+      - 第六十三条第六款
+    approval:
+      type: approve_gt_reject
+      approve_min_of_turnout: 1/2
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 12h
+    anonymous: true
+  formal_discipline_restrict_vote_or_remove:
+    sources:
+      - 第六十三条第四款
+      - 第六十三条第六款
+    approval:
+      type: approve_gte_effective_votes_2_over_3
+      approve_min_of_turnout: 3/5
+    turnout_min_of_all_voting_members: 1/2
+    min_vote_period: 12h
+    anonymous: true
+
+human_review_gates:
+  gate_collective_sovereignty_boundary:
+    question: 当前动作是否把群视为私人财产、派系领地，或试图以身份、历史贡献、技术控制、临时多数超越群规
+    sources:
+      - 第一条
+      - 第二条
+  gate_member_basic_rights_boundary:
+    question: 当前治理动作是否不当剥夺成员的讨论、提案、知情、申辩、复核、免受报复或基本尊严、隐私与群聊安全
+    sources:
+      - 第五条
+  gate_member_basic_duty_match:
+    question: 当前成员行为是否落入基本义务所禁止的侵害、虚构紧急状态、恶意重复提案或干扰程序
+    sources:
+      - 第六条
+  gate_duplicate_account_determination:
+    question: 是否构成明显重复小号
+    sources:
+      - 第四条第二项
+      - 第四条第四项
+    required_output:
+      - confirmed
+      - rejected
+      - need_more_evidence
+  gate_norm_conflict_core_guarantee:
+    question: 该解释或适用是否损害上位规范核心保障
+    sources:
+      - 第三条
+  gate_group_matter_scope:
+    question: 提案是否属于群内事项，是否明显违反上位规范
+    sources:
+      - 第四条第十二项
+      - 第十六条
+  gate_governance_authority_boundary:
+    question: 当前动作是否落在荣誉群主、元老会、机器人或技术保管人的法定权限边界内
+    sources:
+      - 第八条
+      - 第十一条
+      - 第十二条
+  gate_bootstrap_override_boundary:
+    question: 当前人工或技术保管动作是否只是必要初始化/修复，而未替代正式治理程序
+    sources:
+      - 第九条第四项
+      - 第十条之一
+  gate_elder_council_seat_count_review:
+    question: 当前元老会目标席位是否已有明确基础治理条例设置
+    sources:
+      - 第二十七条第二款
+  gate_elder_candidate_commitment_review:
+    question: 候选人是否已明确承诺遵守程序中立和回避规则
+    sources:
+      - 第二十八条第三项
+  gate_honor_owner_candidate_commitment_review:
+    question: 荣誉群主候选人是否已明确表示愿意履职并接受监督
+    sources:
+      - 第二十一条第三项
+      - 第二十二条
+  gate_conflict_of_interest:
+    question: 是否存在需要回避的重大利益冲突
+    sources:
+      - 第十三条
+      - 第四十三条第二款
+  gate_elder_council_high_risk_review:
+    question: 当前元老会决定是否属于高风险程序判断或特别表决事项
+    sources:
+      - 第三十条第三款
+  gate_elder_council_timeout_fallback_review:
+    question: 元老会是否已经超时，以及下一顺位承接主体是否可启动
+    sources:
+      - 第三十一条
+  gate_emergency_state_confirmation:
+    question: 当前是否属于现实、持续、紧迫的紧急状态
+    sources:
+      - 第四十条
+      - 第四十一条
+  gate_objective_safety_risk_exception:
+    question: 是否存在客观安全风险，以至于可触发例外处理
+    sources:
+      - 第三十五条第二款
+      - 第四十二条第四款
+      - 第四十四条第五项
+      - 第五十一条第三项
+  gate_same_major_fact_and_institutional_reason:
+    question: 是否属于同一主要事实 / 同一制度性理由，或是否出现新的重大事实
+    sources:
+      - 第四十九条
+      - 第五十条
+      - 第五十五条
+  gate_reboot_institutional_breakdown_review:
+    question: 当前重组元老会动议是否基于制度性失灵，而非对个案裁决、立场差异或私人冲突的不满
+    sources:
+      - 第四十八条
+      - 第四十九条
+      - 第五十四条
+  gate_signature_identity_and_case_completeness:
+    question: 联署人身份是否有效，案件材料是否达到形式完备
+    sources:
+      - 第三十四条
+      - 第三十九条第二款
+      - 第五十条
+  gate_impeachment_reason_catalog_match:
+    question: 当前事实是否落入法定弹劾理由目录
+    sources:
+      - 第三十三条
+      - 第三十八条
+  gate_evidence_sufficiency_and_privacy:
+    question: 证据是否达到可复核、相互印证且兼顾隐私保护
+    sources:
+      - 第五十八条
+      - 第六十二条
+  gate_notice_feasibility_review:
+    question: 是否已尝试可行送达方式，且是否仍保留陈述与复核渠道
+    sources:
+      - 第六十条之一
+      - 第六十一条
+  gate_review_reason_validity:
+    question: 复核理由是否属于法定范围
+    sources:
+      - 第六十五条第二款
+  gate_vote_validity_review:
+    question: 投票过程是否存在程序错误、重复票或身份不可确认票
+    sources:
+      - 第四条第五至第九项
+      - 第十八条
+      - 第十九条
+  gate_retaliation_review:
+    question: 该管理动作是否构成压制批评或报复
+    sources:
+      - 第四十五条
+  gate_elder_council_prohibition_review:
+    question: 当前元老会动作是否构成压制异见、泄密、不回避、越权或阻碍合法程序
+    sources:
+      - 第三十二条
+  gate_bypass_formal_rulemaking:
+    question: 当前动作是否在以临时措施或重复续期规避正式程序
+    sources:
+      - 第二十条
+      - 第六十六条
+  gate_platform_constraint_review:
+    question: 平台限制、账号安全或外部强制规则是否真实存在且已采取最小必要保全
+    sources:
+      - 第十条之一第四款
+  gate_roster_correction_review:
+    question: 是否属于名册冻结后的允许更正事项
+    sources:
+      - 第四条第五项
+  gate_rule_basis_match:
+    question: 拟执行动作是否有明确规则依据
+    sources:
+      - 第七条
+  gate_privacy_safe_public_summary:
+    question: 公开摘要是否已避免不必要的隐私泄露
+    sources:
+      - 第五十八条
+      - 第六十四条第四款
+  gate_temporary_interpretation_boundary:
+    question: 临时解释是否越过“仅为维持程序继续所必要”的边界
+    sources:
+      - 第六十七条
+  gate_core_norm_amendment_boundary:
+    question: 当前修订是否触及群规总则、基本权力结构或核心制度，并因此必须适用宪制修订案程序与明确条文变更
+    sources:
+      - 第六十八条
+  gate_non_retroactivity_exception_review:
+    question: 生效前已完成的旧程序是否存在重大程序违法或安全风险，因而可以作为不溯及既往的例外复核
+    sources:
+      - 第六十九条
+  gate_emergency_abuse_review:
+    question: 紧急措施是否构成滥用
+    sources:
+      - 第四十七条
+
+human_review_gate_contracts:
+  defaults:
+    review_record_required_fields:
+      - gate_id
+      - case_id
+      - result
+      - reviewed_by
+      - reviewed_at
+      - rationale_summary
+      - evidence_refs
+    emits:
+      - review_gate_decided
+  gates:
+    gate_duplicate_account_determination:
+      result_enum:
+        - confirmed_duplicate
+        - not_duplicate
+        - need_more_evidence
+    gate_norm_conflict_core_guarantee:
+      result_enum:
+        - core_guarantee_damaged
+        - no_core_guarantee_damage
+        - need_more_interpretation
+    gate_group_matter_scope:
+      result_enum:
+        - in_scope_and_not_manifestly_illegal
+        - out_of_scope
+        - manifest_conflict_with_higher_norm
+        - need_more_material
+    gate_honor_owner_candidate_commitment_review:
+      result_enum:
+        - commitment_confirmed
+        - commitment_not_confirmed
+        - need_more_record
+    gate_conflict_of_interest:
+      result_enum:
+        - recusal_required
+        - no_recusal_required
+        - need_more_facts
+    gate_emergency_state_confirmation:
+      result_enum:
+        - emergency_confirmed
+        - emergency_not_established
+        - need_more_facts
+    gate_objective_safety_risk_exception:
+      result_enum:
+        - objective_risk_confirmed
+        - objective_risk_not_confirmed
+        - need_more_evidence
+    gate_same_major_fact_and_institutional_reason:
+      result_enum:
+        - sufficient_and_repeat_allowed
+        - insufficient_or_repeat_barred
+        - need_more_evidence
+    gate_reboot_institutional_breakdown_review:
+      result_enum:
+        - institutional_breakdown_confirmed
+        - insufficient_or_daily_conflict_only
+        - need_more_facts
+    gate_signature_identity_and_case_completeness:
+      result_enum:
+        - complete_and_identity_valid
+        - incomplete_or_identity_invalid
+        - need_manual_identity_check
+    gate_impeachment_reason_catalog_match:
+      result_enum:
+        - matched_statutory_ground
+        - not_matched
+        - need_more_facts
+    gate_evidence_sufficiency_and_privacy:
+      result_enum:
+        - sufficient_and_summary_ready
+        - insufficient
+        - privacy_redaction_required
+    gate_notice_feasibility_review:
+      result_enum:
+        - service_feasible_and_sufficient
+        - more_attempts_required
+        - objective_failure_documented
+    gate_review_reason_validity:
+      result_enum:
+        - valid_review_ground
+        - invalid_review_ground
+        - need_more_material
+    gate_vote_validity_review:
+      result_enum:
+        - valid_vote
+        - invalid_due_to_procedural_error
+        - invalid_due_to_identity_or_duplicate_issue
+        - recount_required
+    gate_retaliation_review:
+      result_enum:
+        - retaliatory
+        - not_retaliatory
+        - need_more_context
+    gate_bypass_formal_rulemaking:
+      result_enum:
+        - bypass_detected
+        - no_bypass
+        - need_more_history
+    gate_platform_constraint_review:
+      result_enum:
+        - platform_constraint_confirmed
+        - platform_constraint_not_confirmed
+        - need_more_evidence
+    gate_roster_correction_review:
+      result_enum:
+        - correction_allowed
+        - correction_not_allowed
+        - need_more_evidence
+    gate_rule_basis_match:
+      result_enum:
+        - rule_basis_confirmed
+        - no_matching_rule_basis
+        - need_more_interpretation
+    gate_privacy_safe_public_summary:
+      result_enum:
+        - summary_safe_to_publish
+        - summary_requires_redaction
+        - need_more_review
+    gate_temporary_interpretation_boundary:
+      result_enum:
+        - within_boundary
+        - exceeds_boundary
+        - escalate_to_group_review
+    gate_core_norm_amendment_boundary:
+      result_enum:
+        - constitutional_route_required
+        - ordinary_or_basic_route_sufficient
+        - vague_or_incomplete_core_change_text
+    gate_non_retroactivity_exception_review:
+      result_enum:
+        - exception_confirmed_major_procedural_illegality
+        - exception_confirmed_safety_risk
+        - no_exception_keep_non_retroactivity
+        - need_more_material
+    gate_emergency_abuse_review:
+      result_enum:
+        - abuse_confirmed
+        - no_abuse_found
+        - need_more_evidence
+
+lock_types:
+  honor_owner_powers:
+    sources: 第三十五条第一款
+    applies_to: target_honor_owner
+    released_when:
+      - impeachment_closed
+      - impeachment_rejected
+      - partial_measure_replaced_by_new_case_resolution
+  elder_powers:
+    sources: 第三十九条第四款
+    applies_to: target_elder
+    released_when:
+      - impeachment_closed
+  reboot_procedure_protection:
+    sources: 第五十一条
+    applies_to:
+      - proposers
+      - endorsers
+      - related_discussion_scope
+    released_when:
+      - reboot_closed
+  temporary_mute:
+    sources: 第四十四条第二项
+    applies_to: emergency_target
+    released_when:
+      - expiry_reached
+      - revoked_on_review
+      - converted_and_credited_in_formal_discipline
+  temporary_motion_restriction:
+    sources: 第四十四条第三项
+    applies_to: emergency_target
+    released_when:
+      - expiry_reached
+      - revoked_on_review
+  daily_management_motion_restriction:
+    sources:
+      - 第五十六条
+      - 第五十七条
+    applies_to: ordinary_management_target
+    released_when:
+      - expiry_reached
+      - replaced_by_formal_discipline
+  temporary_high_risk_power_suspension:
+    sources: 第四十四条第四项
+    applies_to: emergency_target
+    released_when:
+      - expiry_reached
+      - revoked_on_review
+
+side_effect_contracts:
+  defaults:
+    execution_record_required_fields:
+      - case_id
+      - side_effect
+      - requested_by
+      - executed_at
+      - result
+      - error_message_if_any
+    binding_status_legend:
+      existing_runtime: 已有明确运行时实现，且主执行路径已接入当前 owner
+      existing_runtime_case_scoped: 已有实现，但通过案件级通用动作统一承接
+      partial_existing_runtime: 已有部分运行时实现，但尚未完全覆盖 contract 中的抽象输出或副作用声明
+      planned_runtime: 规范已定义，但当前仓库尚未接入运行时
+    runtime_bindings:
+      governance_storage:
+        set_role_status: src/vendors/nonebot_plugin_law/governance/storage.py::GovernanceStorage.set_role_status
+        revoke_role: src/vendors/nonebot_plugin_law/governance/storage.py::GovernanceStorage.revoke_role
+        revoke_all_roles: src/vendors/nonebot_plugin_law/governance/storage.py::GovernanceStorage.revoke_all_roles
+        create_case: src/vendors/nonebot_plugin_law/governance/storage.py::GovernanceStorage.create_case
+        update_case_fields: src/vendors/nonebot_plugin_law/governance/storage.py::GovernanceStorage.update_case_fields
+        resolve_case_status: src/vendors/nonebot_plugin_law/governance/storage.py::GovernanceStorage.resolve_case_status
+        upsert_lock: src/vendors/nonebot_plugin_law/governance/storage.py::GovernanceStorage.upsert_lock
+        release_case_locks: src/vendors/nonebot_plugin_law/governance/storage.py::GovernanceStorage.release_case_locks
+      group_gateway:
+        send_msg: src/support/group.py::Group.send_msg
+        ban: src/support/group.py::Group.ban
+        kick: src/support/group.py::Group.kick
+        set_group_admin: src/support/group.py::Group.set_group_admin
+        get_group_member_info: src/support/group.py::Group.get_group_member_info
+        get_group_member_list: src/support/group.py::Group.get_group_member_list
+      emits:
+        - side_effect_completed
+        - side_effect_failed
+  effects:
+    assign_honor_owner_role:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_set_honor_owner
+      required_inputs:
+        - target_member_id
+        - operator_id
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.revoke_role(previous_honor_owner_if_different)
+        - GovernanceStorage.set_role_status(role_code=honor_owner,status=active)
+      api_calls:
+        - Group.set_group_admin(target_member_id,true) when_platform_sync_enabled
+      emits:
+        - side_effect_completed
+        - governance_result_published
+    reopen_nomination_if_needed:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - source_case_id
+        - reopen_reason
+      storage_calls:
+        - GovernanceStorage.create_case(case_type=honor_owner_election) when_new_nomination_needed
+      api_calls:
+        - Group.send_msg(reopen_notice)
+      emits:
+        - side_effect_completed
+    revoke_honor_owner_role:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - target_member_id
+        - operator_id
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.revoke_role(role_code=honor_owner)
+      api_calls:
+        - Group.set_group_admin(target_member_id,false) when_platform_sync_enabled
+      emits:
+        - side_effect_completed
+    assign_elder_role:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_approve_elder_election_case
+      required_inputs:
+        - winner_member_ids
+        - operator_id
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.set_role_status(role_code=elder,status=active)
+        - GovernanceStorage.update_case_fields(payload_json.term_started_at,payload_json.term_expires_at_by_member)
+      api_calls: []
+      emits:
+        - side_effect_completed
+    start_by_election:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - source_case_id
+        - triggered_by
+      storage_calls:
+        - GovernanceStorage.create_case(case_type=honor_owner_election)
+      api_calls:
+        - Group.send_msg(by_election_started_notice)
+      emits:
+        - side_effect_completed
+    release_lock_honor_owner_powers:
+      binding_status: existing_runtime_case_scoped
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.release_case_locks(source_case_id)
+      api_calls: []
+      emits:
+        - governance_lock_released
+        - side_effect_completed
+    apply_lock_elder_powers:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_advance_case_after_support
+      required_inputs:
+        - source_case_id
+        - target_member_id
+        - reason
+      storage_calls:
+        - GovernanceStorage.upsert_lock(lock_type=elder_powers,target_member_id=target_member_id)
+      api_calls: []
+      emits:
+        - governance_lock_applied
+        - side_effect_completed
+    revoke_elder_role:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - target_member_id
+        - operator_id
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.revoke_role(role_code=elder)
+      api_calls: []
+      emits:
+        - side_effect_completed
+    trigger_by_election_if_needed:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - source_case_id
+        - vacancy_count
+      storage_calls:
+        - GovernanceStorage.create_case(case_type=elder_election) when_vacancy_requires_by_election
+      api_calls:
+        - Group.send_msg(by_election_started_notice)
+      emits:
+        - side_effect_completed
+    release_lock_elder_powers:
+      binding_status: existing_runtime_case_scoped
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.release_case_locks(source_case_id)
+      api_calls: []
+      emits:
+        - governance_lock_released
+        - side_effect_completed
+    restore_feasible_participation_or_publish_objective_reason:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_advance_emergency_protection_case
+      required_inputs:
+        - target_member_id
+        - source_case_id
+        - objective_reason_if_not_restored
+      storage_calls:
+        - GovernanceStorage.update_case_fields(status=closed,phase=closed)
+      api_calls:
+        - Group.send_msg(restoration_or_objective_reason_notice)
+      emits:
+        - side_effect_completed
+        - governance_result_published
+    record_daily_management_note:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::daily_management_command
+      required_inputs:
+        - target_member_id
+        - action_type
+        - reason
+        - operator_id
+      storage_calls:
+        - GovernanceStorage.create_case(case_type=daily_management)
+        - GovernanceStorage.update_case_fields(payload_json.public_summary_ref,execution_ref,resolved_at)
+      api_calls:
+        - Group.send_msg(daily_management_summary)
+      emits:
+        - governance_case_created
+        - governance_result_published
+        - side_effect_completed
+    apply_daily_management_short_mute:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::daily_management_command
+      required_inputs:
+        - target_member_id
+        - sanction_duration
+        - operator_id
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.create_case(case_type=daily_management)
+        - GovernanceStorage.update_case_fields(payload_json.public_summary_ref,execution_ref,resolved_at)
+      api_calls:
+        - Group.ban(target_member_id,duration_seconds)
+        - Group.send_msg(daily_management_summary)
+      emits:
+        - side_effect_completed
+        - governance_result_published
+    apply_daily_management_motion_restriction:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::daily_management_command
+      required_inputs:
+        - target_member_id
+        - expires_at
+        - operator_id
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.create_case(case_type=daily_management)
+        - GovernanceStorage.upsert_lock(lock_type=daily_management_motion_restriction,target_member_id=target_member_id)
+        - GovernanceStorage.update_case_fields(payload_json.public_summary_ref,execution_ref,resolved_at)
+      api_calls:
+        - Group.send_msg(daily_management_summary)
+      emits:
+        - governance_lock_applied
+        - governance_result_published
+        - side_effect_completed
+    dissolve_current_council:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - operator_id
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.revoke_all_roles(role_code=elder)
+      api_calls: []
+      emits:
+        - side_effect_completed
+    start_new_council_election_within_72h:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - source_case_id
+        - deadline_hours
+      storage_calls:
+        - GovernanceStorage.create_case(case_type=elder_election)
+      api_calls:
+        - Group.send_msg(council_election_started_notice)
+      emits:
+        - side_effect_completed
+    enter_reboot_interim_supervision:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_finalize_case_vote
+      required_inputs:
+        - source_case_id
+        - interim_supervision_mode
+      storage_calls:
+        - GovernanceStorage.update_case_fields(payload_json.interim_supervision_active,interim_supervision_mode,honor_owner_self_review_channel)
+      api_calls:
+        - Group.send_msg(interim_supervision_notice)
+      emits:
+        - side_effect_completed
+    escalate_reboot_collective_supervision:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_reject_elder_election_case
+      required_inputs:
+        - source_case_id
+        - failed_rounds
+      storage_calls:
+        - GovernanceStorage.update_case_fields(payload_json.temporary_collective_supervision_active,new_council_failed_election_rounds)
+      api_calls:
+        - Group.send_msg(collective_supervision_notice)
+      emits:
+        - side_effect_completed
+    apply_formal_discipline_long_mute:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_execute_formal_discipline_case
+      required_inputs:
+        - target_member_id
+        - sanction_duration
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.update_case_fields(payload_json.decision_summary,execution_ref,effective_at,expires_at)
+      api_calls:
+        - Group.ban(target_member_id,duration_seconds)
+      emits:
+        - sanction_executed
+        - side_effect_completed
+    apply_formal_discipline_restrict_vote:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_execute_formal_discipline_case
+      required_inputs:
+        - target_member_id
+        - expires_at
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.upsert_lock(lock_type=formal_discipline_restrict_vote,target_member_id=target_member_id)
+        - GovernanceStorage.update_case_fields(payload_json.decision_summary,execution_ref,effective_at,expires_at)
+      api_calls: []
+      emits:
+        - governance_lock_applied
+        - sanction_executed
+        - side_effect_completed
+    apply_formal_discipline_restrict_candidacy:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_execute_formal_discipline_case
+      required_inputs:
+        - target_member_id
+        - expires_at
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.upsert_lock(lock_type=formal_discipline_restrict_candidacy,target_member_id=target_member_id)
+        - GovernanceStorage.update_case_fields(payload_json.decision_summary,execution_ref,effective_at,expires_at)
+      api_calls: []
+      emits:
+        - governance_lock_applied
+        - sanction_executed
+        - side_effect_completed
+    apply_formal_discipline_remove_member:
+      binding_status: existing_runtime
+      current_orchestration: src/vendors/nonebot_plugin_law/governance/manager.py::_execute_formal_discipline_case
+      required_inputs:
+        - target_member_id
+        - source_case_id
+      storage_calls:
+        - GovernanceStorage.update_case_fields(payload_json.decision_summary,execution_ref,effective_at)
+      api_calls:
+        - Group.kick(target_member_id) when_not_already_removed_by_emergency
+      emits:
+        - sanction_executed
+        - side_effect_completed
+
+workflow_fsm:
+  ordinary_proposal:
+    sources:
+      - 第十四条
+      - 第十五条
+      - 第十六条
+      - 第十七条
+      - 第十八条
+      - 第十九条
+      - 第二十条
+    initial_state: filed
+    terminal_states:
+      - closed
+    states:
+      - filed
+      - procedural_review
+      - correction_requested
+      - procedurally_rejected
+      - discussion
+      - voting
+      - approved
+      - rejected
+      - closed
+    transitions:
+      - from: filed
+        event: proposal_submitted
+        to: procedural_review
+        guards:
+          - art_04_12_procedural_review_scope
+          - art_16_ordinary_proposal_review
+      - from: procedural_review
+        event: correction_requested
+        to: correction_requested
+      - from: procedural_review
+        event: proposal_passed_procedural_review
+        to: discussion
+        guards:
+          - art_17_discussion_periods
+      - from: procedural_review
+        event: review_timeout
+        to: discussion
+        guards:
+          - art_16_ordinary_proposal_review
+      - from: procedurally_rejected
+        event: rejection_escalated_with_signatures
+        to: voting
+        guards:
+          - art_16_ordinary_proposal_review
+      - from: discussion
+        event: discussion_period_elapsed
+        to: voting
+        guards:
+          - art_17_discussion_periods
+      - from: voting
+        event: vote_passed
+        to: approved
+        guards:
+          - art_04_05_voter_roster_freeze
+          - art_18_general_vote_thresholds
+      - from: voting
+        event: vote_failed
+        to: rejected
+        guards:
+          - art_04_05_voter_roster_freeze
+          - art_18_general_vote_thresholds
+      - from: approved
+        event: result_published
+        to: closed
+      - from: rejected
+        event: result_published
+        to: closed
+
+  honor_owner_election:
+    sources:
+      - 第二十一条
+      - 第二十二条
+      - 第二十三条
+      - 第二十四条
+      - 第二十五条
+    initial_state: nomination_publicity
+    terminal_states:
+      - closed
+    states:
+      - nomination_publicity
+      - statement_and_questioning
+      - voting
+      - runoff_voting
+      - approved
+      - rejected
+      - closed
+    transitions:
+      - from: nomination_publicity
+        event: nomination_publicity_elapsed
+        to: statement_and_questioning
+        min_duration: 24h
+        guards:
+          - art_21_honor_owner_candidate_eligibility
+          - art_22_honor_owner_nomination_channels
+      - from: statement_and_questioning
+        event: questioning_elapsed
+        to: voting
+        min_duration: 12h
+      - from: voting
+        event: single_candidate_passed
+        to: approved
+        threshold_ref: honor_owner_election_single_candidate
+        guards:
+          - art_24_honor_owner_term_and_caretaker
+      - from: voting
+        event: multi_candidate_requires_runoff
+        to: runoff_voting
+        threshold_ref: honor_owner_election_single_candidate
+      - from: voting
+        event: vote_failed_without_runoff
+        to: rejected
+        guards:
+          - art_25_honor_owner_vacancy_and_proxy
+      - from: runoff_voting
+        event: runoff_passed
+        to: approved
+        threshold_ref: honor_owner_election_runoff
+        guards:
+          - art_24_honor_owner_term_and_caretaker
+      - from: runoff_voting
+        event: runoff_failed
+        to: rejected
+        threshold_ref: honor_owner_election_runoff
+        guards:
+          - art_25_honor_owner_vacancy_and_proxy
+      - from: approved
+        event: result_published
+        to: closed
+        side_effects:
+          - assign_honor_owner_role
+      - from: rejected
+        event: result_published
+        to: closed
+        side_effects:
+          - reopen_nomination_if_needed
+
+  elder_election:
+    sources:
+      - 第二十七条
+      - 第二十八条
+      - 第二十九条
+      - 第三十条
+      - 第三十一条
+      - 第三十二条
+    initial_state: nomination_publicity
+    terminal_states:
+      - closed
+    states:
+      - nomination_publicity
+      - voting
+      - runoff_voting
+      - approved
+      - rejected
+      - closed
+    transitions:
+      - from: nomination_publicity
+        event: nomination_publicity_elapsed
+        to: voting
+        guards:
+          - art_27_elder_council_composition
+          - art_28_elder_candidate_eligibility
+          - art_29_elder_election_process
+      - from: voting
+        event: vote_passed_without_last_seat_tie
+        to: approved
+        guards:
+          - art_29_elder_election_process
+      - from: voting
+        event: last_seat_tied
+        to: runoff_voting
+        guards:
+          - art_29_elder_election_process
+      - from: voting
+        event: vote_failed
+        to: rejected
+        guards:
+          - art_29_elder_election_process
+      - from: runoff_voting
+        event: runoff_passed
+        to: approved
+        guards:
+          - art_29_elder_election_process
+      - from: runoff_voting
+        event: runoff_failed
+        to: rejected
+        guards:
+          - art_29_elder_election_process
+      - from: approved
+        event: result_published
+        to: closed
+        side_effects:
+          - assign_elder_role
+      - from: rejected
+        event: result_published
+        to: closed
+
+  honor_owner_impeachment:
+    sources:
+      - 第三十三条
+      - 第三十四条
+      - 第三十五条
+      - 第三十六条
+      - 第三十七条
+    initial_state: filed
+    terminal_states:
+      - approved
+      - rejected
+      - closed
+    states:
+      - filed
+      - establishment_review
+      - established
+      - frozen
+      - response_window
+      - voting
+      - approved
+      - rejected
+      - closed
+    transitions:
+      - from: filed
+        event: impeachment_motion_submitted
+        to: establishment_review
+        guards:
+          - art_33_honor_owner_impeachment_reason_catalog
+          - art_34_impeachment_establishment
+      - from: establishment_review
+        event: motion_established
+        to: frozen
+        guards:
+          - art_35_impeachment_freeze
+      - from: frozen
+        event: response_window_opened
+        to: response_window
+        min_duration: 12h
+      - from: response_window
+        event: response_window_elapsed
+        to: voting
+        threshold_ref: honor_owner_impeachment
+      - from: voting
+        event: vote_passed
+        to: approved
+        threshold_ref: honor_owner_impeachment
+        guards:
+          - art_37_honor_owner_impeachment_outcomes
+        side_effects:
+          - revoke_honor_owner_role
+          - start_by_election
+      - from: voting
+        event: vote_failed
+        to: rejected
+        threshold_ref: honor_owner_impeachment
+        guards:
+          - art_37_honor_owner_impeachment_outcomes
+        side_effects:
+          - release_lock_honor_owner_powers
+      - from: approved
+        event: resolution_published
+        to: closed
+      - from: rejected
+        event: resolution_published
+        to: closed
+
+  elder_impeachment:
+    sources:
+      - 第三十八条
+      - 第三十九条
+    initial_state: filed
+    terminal_states:
+      - approved
+      - rejected
+      - closed
+    states:
+      - filed
+      - establishment_review
+      - frozen
+      - response_window
+      - voting
+      - approved
+      - rejected
+      - closed
+    transitions:
+      - from: filed
+        event: impeachment_motion_submitted
+        to: establishment_review
+        guards:
+          - art_38_elder_impeachment_reason_catalog
+          - art_34_impeachment_establishment
+      - from: establishment_review
+        event: motion_established
+        to: frozen
+        side_effects:
+          - apply_lock_elder_powers
+      - from: frozen
+        event: response_window_opened
+        to: response_window
+        min_duration: 12h
+      - from: response_window
+        event: response_window_elapsed
+        to: voting
+        threshold_ref: elder_impeachment
+      - from: voting
+        event: vote_passed
+        to: approved
+        threshold_ref: elder_impeachment
+        side_effects:
+          - revoke_elder_role
+          - trigger_by_election_if_needed
+      - from: voting
+        event: vote_failed
+        to: rejected
+        threshold_ref: elder_impeachment
+        side_effects:
+          - release_lock_elder_powers
+      - from: approved
+        event: resolution_published
+        to: closed
+      - from: rejected
+        event: resolution_published
+        to: closed
+
+  daily_management:
+    sources:
+      - 第五十六条
+      - 第五十七条
+    initial_state: submitted
+    terminal_states:
+      - closed
+    states:
+      - submitted
+      - executed
+      - closed
+    transitions:
+      - from: submitted
+        event: daily_management_applied
+        to: executed
+        guards:
+          - art_56_daily_management_ladder
+          - art_57_daily_management_sanction_catalog
+      - from: executed
+        event: summary_published
+        to: closed
+
+  emergency_protection:
+    sources:
+      - 第四十条
+      - 第四十一条
+      - 第四十二条
+      - 第四十三条
+      - 第四十四条
+      - 第四十五条
+      - 第四十六条
+      - 第四十七条
+      - 第六十六条
+    initial_state: reported
+    terminal_states:
+      - expired
+      - escalated_to_formal_discipline
+      - closed
+    states:
+      - reported
+      - support_collecting
+      - motion_established
+      - honor_owner_response_pending
+      - temporary_measure_active
+      - initial_review_due
+      - extended_once
+      - escalated_to_formal_discipline
+      - closed
+    transitions:
+      - from: reported
+        event: emergency_motion_created
+        to: support_collecting
+        guards:
+          - art_40_41_emergency_definition
+          - art_42_emergency_motion_establishment
+      - from: support_collecting
+        event: support_threshold_met
+        to: motion_established
+        guards:
+          - art_42_emergency_motion_establishment
+      - from: motion_established
+        event: response_clock_started
+        to: honor_owner_response_pending
+        guards:
+          - art_43_honor_owner_response
+      - from: honor_owner_response_pending
+        event: temporary_measure_applied
+        to: temporary_measure_active
+        guards:
+          - art_44_46_emergency_measure_limits
+          - art_45_emergency_prohibitions
+      - from: temporary_measure_active
+        event: temporary_removal_applied
+        to: initial_review_due
+        deadline: 24h
+      - from: temporary_measure_active
+        event: duration_gt_24h_requires_review
+        to: extended_once
+        guards:
+          - art_44_46_emergency_measure_limits
+      - from: temporary_measure_active
+        event: total_duration_gt_48h
+        to: escalated_to_formal_discipline
+        guards:
+          - art_66_emergency_to_formal_bridge
+      - from: temporary_measure_active
+        event: measure_ended
+        to: closed
+        guards:
+          - art_47_emergency_post_review
+      - from: initial_review_due
+        event: initial_review_completed
+        to: temporary_measure_active
+      - from: initial_review_due
+        event: initial_review_timeout
+        to: closed
+        side_effects:
+          - restore_feasible_participation_or_publish_objective_reason
+      - from: extended_once
+        event: measure_ended
+        to: closed
+        guards:
+          - art_47_emergency_post_review
+      - from: escalated_to_formal_discipline
+        event: formal_discipline_case_created
+        to: closed
+
+  elder_reboot:
+    sources:
+      - 第四十八条
+      - 第四十九条
+      - 第五十条
+      - 第五十一条
+      - 第五十二条
+      - 第五十三条
+      - 第五十四条
+      - 第五十五条
+    initial_state: filed
+    terminal_states:
+      - approved
+      - rejected
+      - closed
+    states:
+      - filed
+      - establishment_review
+      - protected
+      - cooling
+      - voting
+      - approved
+      - rejected
+      - closed
+    transitions:
+      - from: filed
+        event: reboot_motion_submitted
+        to: establishment_review
+        guards:
+          - art_48_reboot_constitutional_remedy_nature
+          - art_49_reboot_applicability_catalog
+          - art_50_reboot_establishment
+          - art_52_55_reboot_cooling_and_frequency
+      - from: establishment_review
+        event: motion_established
+        to: protected
+        guards:
+          - art_51_reboot_protection_scope
+      - from: protected
+        event: cooling_started
+        to: cooling
+        min_duration: 12h
+      - from: cooling
+        event: cooling_elapsed
+        to: voting
+        threshold_ref: elder_reboot
+      - from: voting
+        event: vote_passed
+        to: approved
+        threshold_ref: elder_reboot
+        guards:
+          - art_54_reboot_effects_and_interim_supervision
+        side_effects:
+          - dissolve_current_council
+          - start_new_council_election_within_72h
+          - enter_reboot_interim_supervision
+      - from: voting
+        event: vote_failed
+        to: rejected
+        threshold_ref: elder_reboot
+      - from: approved
+        event: resolution_published
+        to: closed
+      - from: rejected
+        event: resolution_published
+        to: closed
+
+  formal_discipline:
+    sources:
+      - 第五十九条
+      - 第六十条
+      - 第六十条之一
+      - 第六十一条
+      - 第六十二条
+      - 第六十三条
+      - 第六十四条
+      - 第六十六条
+    initial_state: submitted
+    terminal_states:
+      - approved
+      - rejected
+      - closed
+    states:
+      - submitted
+      - acceptance_review
+      - accepted
+      - notice_in_progress
+      - defense_window
+      - evidence_review
+      - voting
+      - approved
+      - rejected
+      - executed
+      - closed
+    transitions:
+      - from: submitted
+        event: application_submitted
+        to: acceptance_review
+        guards:
+          - art_60_formal_discipline_acceptance
+      - from: acceptance_review
+        event: accepted_or_deemed_accepted
+        to: accepted
+      - from: accepted
+        event: notice_sent
+        to: notice_in_progress
+        guards:
+          - art_60_1_notice_delivery
+      - from: notice_in_progress
+        event: deemed_served
+        to: defense_window
+        guards:
+          - art_61_defense_window
+      - from: defense_window
+        event: defense_window_elapsed_or_waived
+        to: evidence_review
+        guards:
+          - art_62_evidence_review_for_major_sanction
+      - from: evidence_review
+        event: evidence_review_completed
+        to: voting
+        guards:
+          - art_63_formal_discipline_vote
+      - from: voting
+        event: sanction_passed
+        to: approved
+      - from: voting
+        event: sanction_not_passed
+        to: rejected
+      - from: approved
+        event: sanction_executed
+        to: executed
+        guards:
+          - art_64_execution_limits
+      - from: executed
+        event: result_published
+        to: closed
+      - from: rejected
+        event: result_published
+        to: closed
+
+  formal_discipline_review:
+    sources:
+      - 第六十五条
+    initial_state: requested
+    terminal_states:
+      - reopened
+      - denied
+      - closed
+    states:
+      - requested
+      - review_start_check
+      - reopened
+      - denied
+      - closed
+    transitions:
+      - from: requested
+        event: review_request_submitted
+        to: review_start_check
+        guards:
+          - art_65_review_entry
+      - from: review_start_check
+        event: review_started_or_deemed_started
+        to: reopened
+      - from: review_start_check
+        event: review_denied
+        to: denied
+      - from: reopened
+        event: new_review_flow_created
+        to: closed
+      - from: denied
+        event: denial_published
+        to: closed
+
+workflow_dev_contracts:
+  defaults:
+    case_base_fields:
+      - case_id
+      - case_type
+      - proposer_id
+      - status
+      - phase
+      - created_at
+      - updated_at
+    transition_contract_fields:
+      - from
+      - event
+      - to
+      - input_required_fields
+      - output_events
+  ordinary_proposal:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - title
+      - description
+      - payload.proposal_type
+      - payload.purpose_and_reason
+      - payload.proposed_text_or_measure
+      - payload.effective_time_or_expiry
+      - payload.high_risk_power_requested
+    state_required_fields:
+      filed:
+        - proposer_id
+        - title
+        - description
+        - payload.proposal_type
+        - payload.proposed_text_or_measure
+      procedural_review:
+        - review_started_at
+        - review_due_at
+      correction_requested:
+        - correction_items
+      procedurally_rejected:
+        - rejection_reason
+        - cited_articles
+      discussion:
+        - discussion_opened_at
+        - discussion_closes_at
+      voting:
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+        - threshold_set
+      approved:
+        - decision_summary
+        - tally
+        - effective_at
+        - payload.law_version_snapshot
+      rejected:
+        - decision_summary
+        - tally
+      closed:
+        - closed_at
+        - public_summary_ref
+        - published_at
+        - payload.non_retroactivity_boundary_notice
+    transition_contracts:
+      - from: filed
+        event: proposal_submitted
+        to: procedural_review
+        input_required_fields:
+          - proposer_id
+          - title
+          - description
+          - payload.proposal_type
+          - payload.proposed_text_or_measure
+          - submitted_at
+        output_events:
+          - governance_case_created
+          - governance_case_status_changed
+      - from: procedural_review
+        event: correction_requested
+        to: correction_requested
+        input_required_fields:
+          - reviewer_id
+          - correction_items
+          - reviewed_at
+        output_events:
+          - governance_case_status_changed
+          - notice_sent
+      - from: procedural_review
+        event: proposal_passed_procedural_review
+        to: discussion
+        input_required_fields:
+          - reviewer_id
+          - discussion_opened_at
+          - discussion_closes_at
+        output_events:
+          - governance_case_status_changed
+      - from: procedural_review
+        event: review_timeout
+        to: discussion
+        input_required_fields:
+          - timeout_at
+          - fallback_actor_id
+          - timeout_fallback_actor_stage
+          - timeout_fallback_supporter_ids_if_any
+        output_events:
+          - governance_case_status_changed
+      - from: procedurally_rejected
+        event: rejection_escalated_with_signatures
+        to: voting
+        input_required_fields:
+          - escalator_ids
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: discussion
+        event: discussion_period_elapsed
+        to: voting
+        input_required_fields:
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: vote_passed
+        to: approved
+        input_required_fields:
+          - tally
+          - turnout
+          - valid_votes
+          - closed_at
+          - effective_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: voting
+        event: vote_failed
+        to: rejected
+        input_required_fields:
+          - tally
+          - turnout
+          - valid_votes
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: approved
+        event: result_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+      - from: rejected
+        event: result_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+  honor_owner_election:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - candidate_member_ids
+      - candidate_nominations
+      - nomination_method
+      - nomination_support_threshold
+      - vacancy_announced_at_if_any
+      - dispute_resolution_channel_if_any
+    state_required_fields:
+      nomination_publicity:
+        - candidate_member_ids
+        - candidate_nominations
+        - nomination_support_threshold
+        - nomination_opened_at
+        - nomination_closes_at
+        - vacancy_announced_at_if_any
+        - temporary_proxy_status_if_any
+        - dispute_resolution_channel_if_any
+      statement_and_questioning:
+        - questioning_opened_at
+        - questioning_closes_at
+      voting:
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+        - threshold_set
+      runoff_voting:
+        - runoff_candidate_member_ids
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+        - threshold_set
+      approved:
+        - winner_member_id
+        - tally
+        - term_started_at
+        - term_expires_at
+      rejected:
+        - tally
+        - rejection_reason
+      closed:
+        - closed_at
+    transition_contracts:
+      - from: nomination_publicity
+        event: nomination_publicity_elapsed
+        to: statement_and_questioning
+        input_required_fields:
+          - elapsed_at
+          - questioning_opened_at
+          - questioning_closes_at
+        output_events:
+          - governance_case_status_changed
+      - from: statement_and_questioning
+        event: questioning_elapsed
+        to: voting
+        input_required_fields:
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: single_candidate_passed
+        to: approved
+        input_required_fields:
+          - winner_member_id
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: voting
+        event: multi_candidate_requires_runoff
+        to: runoff_voting
+        input_required_fields:
+          - runoff_candidate_member_ids
+          - tally
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - vote_closed
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: vote_failed_without_runoff
+        to: rejected
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: runoff_voting
+        event: runoff_passed
+        to: approved
+        input_required_fields:
+          - winner_member_id
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: runoff_voting
+        event: runoff_failed
+        to: rejected
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: approved
+        event: term_expired_without_successor
+        to: approved
+        input_required_fields:
+          - caretaker_started_at
+          - caretaker_deadline_at
+          - caretaker_scope
+          - caretaker_by_election_case_id
+        output_events:
+          - governance_case_status_changed
+      - from: approved
+        event: governance_summary_published
+        to: approved
+        input_required_fields:
+          - last_governance_summary_at
+          - last_governance_summary_ref
+        output_events:
+          - governance_result_published
+      - from: approved
+        event: result_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - side_effect_completed
+          - governance_result_published
+      - from: rejected
+        event: result_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+  elder_election:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - candidate_member_ids
+      - nomination_method
+      - seat_count
+    state_required_fields:
+      nomination_publicity:
+        - candidate_member_ids
+        - seat_count
+        - nomination_opened_at
+        - nomination_closes_at
+      voting:
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+        - threshold_set
+      runoff_voting:
+        - fixed_winner_member_ids
+        - runoff_candidate_member_ids
+        - runoff_seat_count
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+        - threshold_set
+      approved:
+        - winner_member_ids
+        - tally
+        - term_started_at
+        - term_expires_at_by_member
+      rejected:
+        - tally
+        - rejection_reason
+      closed:
+        - closed_at
+    transition_contracts:
+      - from: nomination_publicity
+        event: nomination_publicity_elapsed
+        to: voting
+        input_required_fields:
+          - elapsed_at
+          - seat_count
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: vote_passed_without_last_seat_tie
+        to: approved
+        input_required_fields:
+          - winner_member_ids
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - side_effect_completed
+          - governance_case_status_changed
+      - from: voting
+        event: last_seat_tied
+        to: runoff_voting
+        input_required_fields:
+          - fixed_winner_member_ids
+          - runoff_candidate_member_ids
+          - runoff_seat_count
+          - tally
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - vote_closed
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: vote_failed
+        to: rejected
+        input_required_fields:
+          - tally
+          - closed_at
+          - rejection_reason
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: runoff_voting
+        event: runoff_passed
+        to: approved
+        input_required_fields:
+          - winner_member_ids
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - side_effect_completed
+          - governance_case_status_changed
+      - from: runoff_voting
+        event: runoff_failed
+        to: rejected
+        input_required_fields:
+          - tally
+          - closed_at
+          - rejection_reason
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: approved
+        event: result_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - side_effect_completed
+          - governance_result_published
+      - from: rejected
+        event: result_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+  honor_owner_impeachment:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - target_member_id
+      - fact_summary
+      - reason_codes
+      - cited_articles
+      - evidence_refs
+      - support_threshold
+    state_required_fields:
+      filed:
+        - proposer_id
+        - target_member_id
+        - fact_summary
+        - reason_codes
+        - evidence_refs
+      establishment_review:
+        - support_threshold
+        - supporter_ids
+      established:
+        - established_at
+      frozen:
+        - lock_ref
+      response_window:
+        - response_opened_at
+        - response_closes_at
+      voting:
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+      approved:
+        - tally
+        - resolved_at
+      rejected:
+        - tally
+        - resolved_at
+      closed:
+        - closed_at
+    transition_contracts:
+      - from: filed
+        event: impeachment_motion_submitted
+        to: establishment_review
+        input_required_fields:
+          - proposer_id
+          - target_member_id
+          - fact_summary
+          - evidence_refs
+          - submitted_at
+        output_events:
+          - governance_case_created
+          - governance_case_status_changed
+      - from: establishment_review
+        event: motion_established
+        to: frozen
+        input_required_fields:
+          - supporter_ids
+          - established_at
+          - lock_ref
+        output_events:
+          - motion_established
+          - governance_lock_applied
+          - governance_case_status_changed
+      - from: frozen
+        event: response_window_opened
+        to: response_window
+        input_required_fields:
+          - response_opened_at
+          - response_closes_at
+          - notice_ref
+        output_events:
+          - notice_sent
+          - governance_case_status_changed
+      - from: response_window
+        event: response_window_elapsed
+        to: voting
+        input_required_fields:
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: vote_passed
+        to: approved
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - side_effect_completed
+          - governance_case_status_changed
+      - from: voting
+        event: vote_failed
+        to: rejected
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_lock_released
+          - governance_case_status_changed
+      - from: approved
+        event: resolution_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+      - from: rejected
+        event: resolution_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+  elder_impeachment:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - target_member_id
+      - fact_summary
+      - reason_codes
+      - evidence_refs
+      - support_threshold
+    state_required_fields:
+      filed:
+        - proposer_id
+        - target_member_id
+        - fact_summary
+        - reason_codes
+      establishment_review:
+        - support_threshold
+        - supporter_ids
+      frozen:
+        - lock_ref
+      response_window:
+        - response_opened_at
+        - response_closes_at
+      voting:
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+      approved:
+        - tally
+        - resolved_at
+      rejected:
+        - tally
+        - resolved_at
+      closed:
+        - closed_at
+    transition_contracts:
+      - from: filed
+        event: impeachment_motion_submitted
+        to: establishment_review
+        input_required_fields:
+          - proposer_id
+          - target_member_id
+          - fact_summary
+          - evidence_refs
+          - submitted_at
+        output_events:
+          - governance_case_created
+          - governance_case_status_changed
+      - from: establishment_review
+        event: motion_established
+        to: frozen
+        input_required_fields:
+          - supporter_ids
+          - established_at
+          - lock_ref
+        output_events:
+          - motion_established
+          - governance_lock_applied
+          - governance_case_status_changed
+      - from: frozen
+        event: response_window_opened
+        to: response_window
+        input_required_fields:
+          - response_opened_at
+          - response_closes_at
+          - notice_ref
+        output_events:
+          - notice_sent
+          - governance_case_status_changed
+      - from: response_window
+        event: response_window_elapsed
+        to: voting
+        input_required_fields:
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: vote_passed
+        to: approved
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - side_effect_completed
+          - governance_case_status_changed
+      - from: voting
+        event: vote_failed
+        to: rejected
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_lock_released
+          - governance_case_status_changed
+      - from: approved
+        event: resolution_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+      - from: rejected
+        event: resolution_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+  emergency_protection:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - target_member_id
+      - fact_summary
+      - evidence_refs
+      - requested_measures
+      - support_threshold
+    state_required_fields:
+      reported:
+        - reporter_id
+        - target_member_id
+        - fact_summary
+        - evidence_refs
+      support_collecting:
+        - support_threshold
+        - supporter_ids
+      motion_established:
+        - established_at
+      honor_owner_response_pending:
+        - response_due_at
+        - notice_ref
+      temporary_measure_active:
+        - active_measure_refs
+        - measure_started_at
+        - total_duration_seconds
+      initial_review_due:
+        - initial_review_due_at
+        - off_group_statement_channel
+      extended_once:
+        - extension_granted_at
+        - expires_at
+      escalated_to_formal_discipline:
+        - escalated_case_ref
+      closed:
+        - closure_report_ref
+        - closed_at
+    transition_contracts:
+      - from: reported
+        event: emergency_motion_created
+        to: support_collecting
+        input_required_fields:
+          - reporter_id
+          - target_member_id
+          - fact_summary
+          - evidence_refs
+          - reported_at
+        output_events:
+          - governance_case_created
+          - emergency_report_submitted
+          - governance_case_status_changed
+      - from: support_collecting
+        event: support_threshold_met
+        to: motion_established
+        input_required_fields:
+          - supporter_ids
+          - established_at
+        output_events:
+          - motion_established
+          - governance_case_status_changed
+      - from: motion_established
+        event: response_clock_started
+        to: honor_owner_response_pending
+        input_required_fields:
+          - response_due_at
+          - notice_ref
+        output_events:
+          - notice_sent
+          - governance_case_status_changed
+      - from: honor_owner_response_pending
+        event: temporary_measure_applied
+        to: temporary_measure_active
+        input_required_fields:
+          - measure_type
+          - target_member_id
+          - started_at
+          - expires_at
+        output_events:
+          - temporary_measure_applied
+          - governance_case_status_changed
+      - from: temporary_measure_active
+        event: temporary_removal_applied
+        to: initial_review_due
+        input_required_fields:
+          - target_member_id
+          - initial_review_due_at
+          - off_group_statement_channel
+        output_events:
+          - notice_sent
+          - governance_case_status_changed
+      - from: temporary_measure_active
+        event: duration_gt_24h_requires_review
+        to: extended_once
+        input_required_fields:
+          - extension_granted_at
+          - extension_basis
+          - expires_at
+        output_events:
+          - governance_case_status_changed
+      - from: temporary_measure_active
+        event: total_duration_gt_48h
+        to: escalated_to_formal_discipline
+        input_required_fields:
+          - total_duration_seconds
+          - escalated_case_ref
+        output_events:
+          - governance_case_status_changed
+      - from: temporary_measure_active
+        event: measure_ended
+        to: closed
+        input_required_fields:
+          - closure_report_ref
+          - closed_at
+        output_events:
+          - emergency_post_review_reported
+          - governance_result_published
+      - from: initial_review_due
+        event: initial_review_completed
+        to: temporary_measure_active
+        input_required_fields:
+          - reviewer_id
+          - reviewed_at
+          - active_measure_refs
+        output_events:
+          - governance_case_status_changed
+      - from: initial_review_due
+        event: initial_review_timeout
+        to: closed
+        input_required_fields:
+          - timeout_at
+          - objective_reason_if_any
+        output_events:
+          - side_effect_completed
+          - governance_result_published
+      - from: extended_once
+        event: measure_ended
+        to: closed
+        input_required_fields:
+          - closure_report_ref
+          - closed_at
+        output_events:
+          - emergency_post_review_reported
+          - governance_result_published
+      - from: escalated_to_formal_discipline
+        event: formal_discipline_case_created
+        to: closed
+        input_required_fields:
+          - escalated_case_ref
+          - created_at
+        output_events:
+          - governance_result_published
+  elder_reboot:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - fact_summary
+      - institutional_reason
+      - institutional_reason_codes
+      - support_threshold
+    state_required_fields:
+      filed:
+        - proposer_id
+        - fact_summary
+        - institutional_reason
+        - institutional_reason_codes
+      establishment_review:
+        - support_threshold
+        - supporter_ids
+      protected:
+        - established_at
+      cooling:
+        - cooling_opened_at
+        - cooling_closes_at
+      voting:
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+      approved:
+        - tally
+        - resolved_at
+        - interim_supervision_mode
+        - honor_owner_self_review_channel
+        - new_council_failed_election_rounds
+      rejected:
+        - tally
+        - resolved_at
+      closed:
+        - closed_at
+    transition_contracts:
+      - from: filed
+        event: reboot_motion_submitted
+        to: establishment_review
+        input_required_fields:
+          - proposer_id
+          - fact_summary
+          - institutional_reason
+          - submitted_at
+        output_events:
+          - governance_case_created
+          - governance_case_status_changed
+      - from: establishment_review
+        event: motion_established
+        to: protected
+        input_required_fields:
+          - supporter_ids
+          - established_at
+        output_events:
+          - motion_established
+          - governance_case_status_changed
+      - from: protected
+        event: cooling_started
+        to: cooling
+        input_required_fields:
+          - cooling_opened_at
+          - cooling_closes_at
+        output_events:
+          - governance_case_status_changed
+      - from: cooling
+        event: cooling_elapsed
+        to: voting
+        input_required_fields:
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: vote_passed
+        to: approved
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - side_effect_completed
+          - governance_case_status_changed
+      - from: voting
+        event: vote_failed
+        to: rejected
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: approved
+        event: resolution_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+      - from: rejected
+        event: resolution_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+  daily_management:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - target_member_id
+      - action_type
+      - reason
+    state_required_fields:
+      submitted:
+        - target_member_id
+        - action_type
+        - reason
+      executed:
+        - executed_at
+        - public_summary_ref
+        - execution_ref
+      closed:
+        - closed_at
+    transition_contracts:
+      - from: submitted
+        event: daily_management_applied
+        to: executed
+        input_required_fields:
+          - target_member_id
+          - action_type
+          - reason
+          - executed_at
+        output_events:
+          - governance_case_created
+          - side_effect_completed
+          - governance_case_status_changed
+      - from: executed
+        event: summary_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+  formal_discipline:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - filer_id
+      - target_member_id
+      - fact_summary
+      - evidence_refs
+      - requested_sanction
+      - formal_scope_sanction_types
+      - formal_scope_summary
+    state_required_fields:
+      submitted:
+        - filer_id
+        - target_member_id
+        - fact_summary
+        - evidence_refs
+        - requested_sanction
+        - formal_scope_sanction_types
+        - formal_scope_summary
+      acceptance_review:
+        - acceptance_due_at
+      accepted:
+        - accepted_at
+      notice_in_progress:
+        - notice_refs
+        - deemed_service_deadline
+      defense_window:
+        - defense_opened_at
+        - defense_closes_at
+      evidence_review:
+        - evidence_matrix_ref
+        - summary_ref
+        - proposed_sanction
+      voting:
+        - roster_snapshot_id
+        - vote_id
+        - vote_opened_at
+        - vote_closes_at
+        - threshold_set
+      approved:
+        - decision_summary
+        - sanction_type
+      rejected:
+        - decision_summary
+      executed:
+        - execution_ref
+        - public_summary_ref
+      closed:
+        - closed_at
+    transition_contracts:
+      - from: submitted
+        event: application_submitted
+        to: acceptance_review
+        input_required_fields:
+          - filer_id
+          - target_member_id
+          - fact_summary
+          - evidence_refs
+          - requested_sanction
+          - formal_scope_sanction_types
+          - formal_scope_summary
+          - submitted_at
+        output_events:
+          - governance_case_created
+          - governance_case_status_changed
+      - from: acceptance_review
+        event: accepted_or_deemed_accepted
+        to: accepted
+        input_required_fields:
+          - accepted_at
+          - accepted_by_or_timeout_marker
+          - timeout_fallback_actor_stage_if_any
+          - timeout_fallback_order_if_any
+          - timeout_fallback_supporter_ids_if_any
+        output_events:
+          - governance_case_status_changed
+      - from: accepted
+        event: notice_sent
+        to: notice_in_progress
+        input_required_fields:
+          - notice_refs
+          - sent_at
+          - deemed_service_deadline
+        output_events:
+          - notice_sent
+          - governance_case_status_changed
+      - from: notice_in_progress
+        event: deemed_served
+        to: defense_window
+        input_required_fields:
+          - deemed_served_at
+          - defense_opened_at
+          - defense_closes_at
+        output_events:
+          - governance_case_status_changed
+      - from: defense_window
+        event: defense_window_elapsed_or_waived
+        to: evidence_review
+        input_required_fields:
+          - defense_elapsed_at_or_waived_at
+          - defense_summary_ref_if_any
+        output_events:
+          - defense_received
+          - governance_case_status_changed
+      - from: evidence_review
+        event: evidence_review_completed
+        to: voting
+        input_required_fields:
+          - summary_ref
+          - reviewer_ids
+          - roster_snapshot_id
+          - vote_opened_at
+          - vote_closes_at
+        output_events:
+          - evidence_review_completed
+          - roster_snapshot_created
+          - vote_opened
+          - governance_case_status_changed
+      - from: voting
+        event: sanction_passed
+        to: approved
+        input_required_fields:
+          - tally
+          - sanction_type
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: voting
+        event: sanction_not_passed
+        to: rejected
+        input_required_fields:
+          - tally
+          - closed_at
+        output_events:
+          - vote_closed
+          - governance_case_status_changed
+      - from: approved
+        event: sanction_executed
+        to: executed
+        input_required_fields:
+          - sanction_type
+          - execution_ref
+          - effective_at
+          - expires_at
+        output_events:
+          - sanction_executed
+          - side_effect_completed
+          - governance_case_status_changed
+      - from: executed
+        event: result_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+      - from: rejected
+        event: result_published
+        to: closed
+        input_required_fields:
+          - public_summary_ref
+          - published_at
+        output_events:
+          - governance_result_published
+  formal_discipline_review:
+    inherits_case_base_fields: true
+    case_required_fields:
+      - source_case_id
+      - requester_id
+      - review_reasons
+    state_required_fields:
+      requested:
+        - source_case_id
+        - requester_id
+        - review_reasons
+        - submitted_at
+      review_start_check:
+        - start_check_due_at
+      reopened:
+        - reopened_at
+        - pause_execution
+        - legacy_exception_basis_if_any
+      denied:
+        - denied_at
+        - denial_reason
+      closed:
+        - closed_at
+    transition_contracts:
+      - from: requested
+        event: review_request_submitted
+        to: review_start_check
+        input_required_fields:
+          - source_case_id
+          - requester_id
+          - review_reasons
+          - submitted_at
+          - legacy_exception_basis_if_any
+        output_events:
+          - review_requested
+          - governance_case_status_changed
+      - from: review_start_check
+        event: review_started_or_deemed_started
+        to: reopened
+        input_required_fields:
+          - reopened_at
+          - pause_execution
+          - timeout_fallback_actor_stage_if_any
+          - timeout_fallback_order_if_any
+          - timeout_fallback_supporter_ids_if_any
+        output_events:
+          - review_started
+          - governance_case_status_changed
+      - from: review_start_check
+        event: review_denied
+        to: denied
+        input_required_fields:
+          - denied_at
+          - denial_reason
+          - timeout_fallback_actor_stage_if_any
+          - timeout_fallback_order_if_any
+          - timeout_fallback_supporter_ids_if_any
+        output_events:
+          - review_denied
+          - governance_case_status_changed
+      - from: reopened
+        event: new_review_flow_created
+        to: closed
+        input_required_fields:
+          - new_case_ref
+          - published_at
+        output_events:
+          - governance_result_published
+      - from: denied
+        event: denial_published
+        to: closed
+        input_required_fields:
+          - published_at
+          - public_summary_ref
+        output_events:
+          - governance_result_published
+
+audit_event_catalog:
+  - event_type: governance_case_status_changed
+    payload:
+      - case_id
+      - case_type
+      - from_state
+      - to_state
+      - transition_event
+      - changed_at
+  - event_type: review_gate_decided
+    payload:
+      - gate_id
+      - case_id
+      - result
+      - reviewed_by
+      - reviewed_at
+  - event_type: side_effect_completed
+    payload:
+      - case_id
+      - side_effect
+      - result
+      - executed_at
+  - event_type: side_effect_failed
+    payload:
+      - case_id
+      - side_effect
+      - error_code
+      - failed_at
+  - event_type: governance_case_created
+    payload:
+      - case_type
+      - article_refs
+      - proposer_id
+      - target_member_id
+      - requested_action
+  - event_type: support_added
+    payload:
+      - case_id
+      - supporter_id
+      - support_count
+      - threshold
+  - event_type: motion_established
+    payload:
+      - case_id
+      - establishment_basis
+      - timeout_fallback_used
+  - event_type: roster_snapshot_created
+    payload:
+      - roster_id
+      - snapshot_at
+      - total_voting_members
+  - event_type: notice_sent
+    payload:
+      - case_id
+      - notice_type
+      - channel
+      - sent_at
+      - deemed_served_at
+  - event_type: defense_received
+    payload:
+      - case_id
+      - target_member_id
+      - submitted_at
+      - evidence_refs
+  - event_type: evidence_registered
+    payload:
+      - case_id
+      - evidence_id
+      - source_type
+      - privacy_scope
+  - event_type: evidence_review_completed
+    payload:
+      - case_id
+      - reviewer_ids
+      - summary_ref
+      - result
+  - event_type: governance_lock_applied
+    payload:
+      - lock_type
+      - target_member_id
+      - source_case_id
+      - expires_at
+  - event_type: governance_lock_released
+    payload:
+      - lock_type
+      - target_member_id
+      - source_case_id
+      - released_at
+  - event_type: temporary_measure_applied
+    payload:
+      - case_id
+      - measure_type
+      - target_member_id
+      - started_at
+      - expires_at
+      - legal_basis
+  - event_type: emergency_report_submitted
+    payload:
+      - case_id
+      - reporter_id
+      - fact_summary
+      - evidence_refs
+  - event_type: emergency_post_review_reported
+    payload:
+      - case_id
+      - report_ref
+      - submitted_at
+  - event_type: vote_opened
+    payload:
+      - case_id
+      - threshold_set
+      - anonymous
+      - opened_at
+      - closes_at
+  - event_type: vote_cast
+    payload:
+      - case_id
+      - voter_id_hash_or_internal_ref
+      - choice
+      - cast_at
+  - event_type: vote_closed
+    payload:
+      - case_id
+      - approve
+      - reject
+      - abstain
+      - turnout
+      - valid_votes
+      - final_result
+  - event_type: sanction_executed
+    payload:
+      - case_id
+      - sanction_type
+      - target_member_id
+      - effective_at
+      - expires_at
+  - event_type: review_requested
+    payload:
+      - source_case_id
+      - requester_id
+      - reasons
+      - submitted_at
+  - event_type: review_started
+    payload:
+      - review_case_id
+      - source_case_id
+      - pause_execution
+  - event_type: review_denied
+    payload:
+      - source_case_id
+      - reason
+      - decided_at
+  - event_type: governance_result_published
+    payload:
+      - case_id
+      - public_summary_ref
+      - published_at
+
+projections:
+  - name: active_cases
+    derived_from:
+      - governance_case_created
+      - motion_established
+      - vote_opened
+      - sanction_executed
+      - governance_result_published
+  - name: active_locks
+    derived_from:
+      - governance_lock_applied
+      - governance_lock_released
+  - name: member_governance_rights
+    derived_from:
+      - sanction_executed
+      - governance_lock_applied
+      - governance_lock_released
+      - governance_result_published
+  - name: voter_roster_snapshots
+    derived_from:
+      - roster_snapshot_created
+  - name: notice_delivery_log
+    derived_from:
+      - notice_sent
+
+invariants:
+  - id: inv_group_not_private_property
+    rule: group_cannot_be_treated_as_private_or_factional_property
+    source: 第一条第二项
+  - id: inv_collective_sovereignty_over_office_and_technical_power
+    rule: no_office_or_technical_control_may_override_collective_authorized_group_norms
+    source: 第二条
+  - id: inv_basic_member_rights_require_lawful_process
+    rule: no_basic_member_right_restriction_without_explicit_lawful_process
+    source:
+      - 第五条
+      - 第七条
+  - id: inv_single_honor_owner
+    rule: same_time_at_most_one_active_honor_owner
+  - id: inv_no_major_sanction_without_reviewable_record
+    rule: no_major_sanction_if_no_reviewable_record
+  - id: inv_no_major_sanction_if_facts_unclear
+    rule: if_key_fact_unclear_then_no_major_sanction
+    source: 第六十二条第四款
+  - id: inv_emergency_not_permanent
+    rule: emergency_measure_cannot_create_permanent_sanction
+    source: 第四十五条第二项
+  - id: inv_rights_sensitive_vote_anonymous
+    rule: rights_or_office_affecting_cases_must_use_anonymous_vote
+    source: 第十八条第七项
+  - id: inv_bot_not_above_law
+    rule: bot_cannot_expand_its_own_governance_power_beyond_norms
+    source: 第十条第一款

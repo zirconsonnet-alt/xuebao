@@ -1,0 +1,90 @@
+[tool.poetry]
+name = "xuebao"
+version = "0.1.0"
+description = "xuebao"
+authors = []
+package-mode = false
+[tool.poetry.dependencies]
+python = ">=3.12,<3.15"
+nonebot2 = { version = ">=2.0,<3.0", extras = ["fastapi"] }
+nonebot-adapter-onebot = "*"
+nonebot-plugin-alconna = "*"
+nonebot-plugin-apscheduler = "*"
+nonebot-plugin-datastore = "*"
+nonebot-plugin-waiter = "*"
+nonebot-plugin-cesaa = "*"
+nonebot-plugin-chatrecorder = "*"
+nonebot-plugin-htmlrender = "*"
+nonebot-plugin-orm = { version = "*", extras = ["default"] }
+nonebot-plugin-send-anything-anywhere = "*"
+nonebot-plugin-userinfo = "*"
+aiohttp = "^3.13.3"
+aiofiles = "^24.1.0"
+emoji = ">=2.0.0,<3.0.0"
+httpx = ">=0.26.0,<1.0.0"
+jieba = "*"
+pillow = "*"
+pytz = "^2025.2"
+beautifulsoup4 = "^4.14.3"
+graphviz = "^0.21"
+meme-generator = "^0.2.2"
+transitions = "^0.9.3"
+openai = "^2.14.0"
+mcp = "1.26.0"
+ffmpeg = "^1.4"
+edge-tts = "^7.2.7"
+numpy = "*"
+matplotlib = "*"
+nonebot-session-to-uninfo = "^0.0.2"
+langgraph = "^1.0.7"
+wordcloud = "^1.9.6"
+nonebot-plugin-prometheus = "^0.4.1"
+qrcode = "^8.2"
+rapidfuzz = "^3.14.3"
+feedparser = "^6.0.12"
+hishel = "0.1.5"
+expiringdictx = "^1.1.0"
+tinydb = "^4.8.2"
+python-socketio = "^5.16.1"
+lxml = "^6.0.2"
+nonebot-plugin-localstore = "^0.7.4"
+bilibili-api-python = "^17.4.1"
+PyExecJS = "^1.5.1"
+pyncm = "^1.8.1"
+cookit = "^0.13.3"
+audio2midi = "^0.15.0"
+librosa = "^0.11.0"
+pretty_midi_fix = "^0.2.0"
+huggingface_hub = "^1.7.1"
+nnAudio = "^0.3.4"
+torch = "^2.10.0"
+yt-dlp = "^2026.3.13"
+mutagen = "^1.47.0"
+[tool.poetry.group.dev.dependencies]
+nb-cli = "^0.6.0"
+pytest = "^8.3.0"
+nonebug = "^0.4.4"
+pytest-asyncio = "^1.3.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["src/vendors", ".venv", ".git", "__pycache__"]
+addopts = "-q"
+asyncio_mode = "auto"
+[tool.nonebot]
+plugins = [
+  "nonebot_plugin_alconna",
+  "nonebot_plugin_orm",
+  "nonebot_plugin_chatrecorder",
+  "nonebot_plugin_datastore",
+  "nonebot_plugin_apscheduler",
+  "nonebot_plugin_waiter",
+  "nonebot_plugin_cesaa",
+  "nonebot_plugin_saa"
+]
+adapters = [
+  { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" }
+]
+[build-system]
+requires = ["poetry_core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<style>
+{% if font_path %}
+@font-face {
+    font-family: "CardFont";
+    src: url("{{ font_path }}");
+}
+{% endif %}
+
+:root {
+    --card-width: {{ card_width }}px;
+    --card-radius: 28px;
+    --card-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
+    --title-color: #f8fafc;
+    --text-color: rgba(241, 245, 249, 0.96);
+    --footer-color: rgba(226, 232, 240, 0.88);
+    --outline: rgba(255, 255, 255, 0.18);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 24px;
+    background: transparent;
+    font-family: "CardFont", "Microsoft YaHei", sans-serif;
+}
+
+.card-root {
+    width: var(--card-width);
+    min-height: {{ card_min_height }}px;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    position: relative;
+    box-shadow: var(--card-shadow);
+    color: var(--text-color);
+    background:
+        radial-gradient(circle at top right, rgba(255, 255, 255, 0.20), transparent 34%),
+        linear-gradient(145deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.90));
+}
+
+.card-root::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        {% if background %}
+        linear-gradient(180deg, rgba(15, 23, 42, 0.12), rgba(15, 23, 42, 0.72)),
+        url("{{ background }}");
+        {% else %}
+        linear-gradient(180deg, rgba(56, 189, 248, 0.08), rgba(15, 23, 42, 0.25));
+        {% endif %}
+    background-size: cover;
+    background-position: center;
+    filter: saturate(1.08);
+}
+
+.card-root::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--outline);
+    border-radius: var(--card-radius);
+    pointer-events: none;
+}
+
+.content-shell {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: {{ card_min_height }}px;
+    justify-content: space-between;
+    padding: 24px 28px 22px;
+    gap: 18px;
+}
+
+.title {
+    margin: 0;
+    font-size: 34px;
+    line-height: 1.2;
+    font-weight: 700;
+    color: var(--title-color);
+    letter-spacing: 1px;
+    text-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
+}
+
+.subtitle {
+    margin: 8px 0 0;
+    font-size: 16px;
+    line-height: 1.5;
+    color: rgba(226, 232, 240, 0.90);
+}
+
+.text-box {
+    margin-top: auto;
+    padding: 18px 20px;
+    border-radius: 22px;
+    background: rgba(15, 23, 42, 0.30);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.text {
+    margin: 0;
+    font-size: 24px;
+    line-height: 1.65;
+    white-space: pre-line;
+    color: var(--text-color);
+    text-shadow: 0 4px 18px rgba(15, 23, 42, 0.25);
+}
+
+.footer {
+    margin-top: auto;
+    padding-top: 6px;
+    font-size: 15px;
+    line-height: 1.55;
+    white-space: pre-line;
+    color: var(--footer-color);
+}
+</style>
+</head>
+<body>
+<div class="card-root" data-card-root="true">
+    <div class="content-shell">
+        <header>
+            {% if title %}
+            <h1 class="title">{{ title }}</h1>
+            {% endif %}
+            {% if subtitle %}
+            <p class="subtitle">{{ subtitle }}</p>
+            {% endif %}
+        </header>
+
+        {% if text %}
+        <section class="text-box">
+            <p class="text">{{ text }}</p>
+        </section>
+        {% endif %}
+
+        {% if footer %}
+        <footer class="footer">{{ footer }}</footer>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>
