@@ -26,9 +26,9 @@ load_env() {
 
 read_env_value() {
   name="$1"
-  default="${2:-}"
-  awk -v key="$name" -v default="$default" '
-    BEGIN { value = default }
+  fallback="${2:-}"
+  awk -v key="$name" -v fallback="$fallback" '
+    BEGIN { value = fallback }
     /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
     {
       line = $0
