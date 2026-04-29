@@ -2,11 +2,12 @@
 
 import json
 import random
+from pathlib import Path
 from typing import Any, Dict, List
 
 import aiohttp
 import nonebot
-from nonebot.adapters.onebot.v11 import ActionFailed
+from nonebot.adapters.onebot.v11 import ActionFailed, Message, MessageSegment
 from nonebot_plugin_alconna import UniMessage
 
 from src.support.core import ServerType, TTSType, make_dict, process_text, tool_registry
@@ -121,14 +122,33 @@ class AIAssistantDialogRuntimeMixin:
 
     async def send_audio(self, path: str, transcript: str = "", *, record_history: bool = True):
         try:
-            receipt = await UniMessage.audio(path=path).send()
+            receipt: Any = None
+            runtime_bot = self._get_runtime_bot()
+            normalized_path = str(Path(path))
+            if runtime_bot is not None and getattr(self, "server_type", None) == ServerType.GROUP.value:
+                receipt = await runtime_bot.send_group_msg(
+                    group_id=int(self.server_id),
+                    message=Message(MessageSegment.record(normalized_path)),
+                )
+            elif runtime_bot is not None and getattr(self, "server_type", None) == ServerType.PRIVATE.value:
+                receipt = await runtime_bot.send_private_msg(
+                    user_id=int(self.server_id),
+                    message=Message(MessageSegment.record(normalized_path)),
+                )
+            else:
+                receipt = await UniMessage.audio(path=normalized_path).send()
             self._record_group_audio_output(
                 transcript=transcript,
                 message_result=receipt,
                 remember_only=(not record_history),
             )
-        except ActionFailed:
-            pass
+            return True
+        except ActionFailed as exc:
+            print(f"[AI TTS] 发送语音失败: {exc}")
+            return False
+        except Exception as exc:
+            print(f"[AI TTS] 发送语音异常: {exc}")
+            return False
 
     async def send_voice_tencent(
         self,
@@ -204,11 +224,14 @@ class AIAssistantDialogRuntimeMixin:
                     music_enable,
                 )
                 if audio_path:
-                    await self.send_audio(
+                    sent = await self.send_audio(
                         audio_path,
                         transcript=display_text or message,
                         record_history=record_history,
                     )
+                    if sent:
+                        return
+                    await self.send_text(display_text, at_user_id=at_user_id, record_history=record_history)
                 else:
                     await self.send_text(display_text, at_user_id=at_user_id, record_history=record_history)
             else:
