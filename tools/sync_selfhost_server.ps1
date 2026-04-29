@@ -5,6 +5,7 @@ param(
     [string]$ServerUser = "root",
     [string]$RemoteRoot = "/home/bylou/xuebao",
     [int]$SshPort = 22,
+    [int]$RemoteGitTimeoutSeconds = 300,
     [string]$SshKeyPath = "",
     [switch]$AllowDirtyWorktree,
     [switch]$PromptOnDirtyWorktree,
@@ -149,6 +150,7 @@ else {
 
 $destination = "${ServerUser}@${ServerHost}"
 $remoteRootQuoted = ConvertTo-ShellSingleQuoted -Value $RemoteRoot
+$remoteGitTimeoutSeconds = [Math]::Max(60, $RemoteGitTimeoutSeconds)
 $deployCommand = if ($SkipDeploy) {
     "echo 'Skipping scripts/deploy.sh because -SkipDeploy was set.'"
 }
@@ -159,6 +161,7 @@ else {
 $remoteScript = @"
 set -eu
 REMOTE_ROOT=$remoteRootQuoted
+GIT_TIMEOUT_SECONDS=$remoteGitTimeoutSeconds
 
 retry() {
   desc="`$1"
@@ -183,9 +186,9 @@ retry() {
 cd "`$REMOTE_ROOT"
 echo "Remote path: `$REMOTE_ROOT"
 echo "Before: `$(git rev-parse --short HEAD)"
-retry "git fetch" timeout 60s git fetch --prune origin || exit "`$?"
+retry "git fetch" timeout "`$GIT_TIMEOUT_SECONDS"s git fetch --prune origin || exit "`$?"
 git checkout main
-retry "git pull" timeout 60s git pull --ff-only origin main || exit "`$?"
+retry "git pull" timeout "`$GIT_TIMEOUT_SECONDS"s git pull --ff-only origin main || exit "`$?"
 chmod +x scripts/deploy.sh scripts/validate-deploy-env.sh scripts/backup-data.sh
 echo "After: `$(git rev-parse --short HEAD)"
 $deployCommand
