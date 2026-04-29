@@ -42,7 +42,7 @@ from src.support.core import Services, process_text
 from src.support.db import GroupDatabase
 from src.support.group import format_card_fallback_text, group_context_factory, render_card_message, run_flow, wait_for
 from src.support.law_docs import (
-    build_law_original_forward_nodes,
+    build_law_document_forward_nodes,
     chunk_law_forward_nodes,
     chunk_law_original_plain_text,
     format_law_search_response,
@@ -1011,7 +1011,10 @@ law_query = on_command("群规", aliases={"查群规", "依据"}, priority=2, bl
 async def _(matcher: Matcher, arg: Message = CommandArg()):
     query = arg.extract_plain_text().strip()
     if not query:
-        await matcher.send("用法：/群规 弹劾冻结\n也可以：/条文 第三十五条、/FAQ 荣誉群主、/群规原文")
+        await matcher.send(
+            "可查看：/群规原文、/简明群规、/群规FAQ原文\n"
+            "可查询：/群规 弹劾冻结、/条文 第三十五条、/FAQ 荣誉群主"
+        )
         return
     await matcher.send(format_law_search_response(query, source="all", limit=3))
 
@@ -1020,10 +1023,10 @@ law_faq_query = on_command("FAQ", aliases={"faq", "群规FAQ", "问答"}, priori
 
 
 @law_faq_query.handle()
-async def _(matcher: Matcher, arg: Message = CommandArg()):
+async def _(matcher: Matcher, bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
     query = arg.extract_plain_text().strip()
     if not query:
-        await matcher.send("用法：/FAQ 荣誉群主")
+        await _send_law_document(matcher, bot, event, "faq")
         return
     await matcher.send(format_law_search_response(query, source="faq", limit=3))
 
@@ -1041,6 +1044,18 @@ async def _(matcher: Matcher, arg: Message = CommandArg()):
 
 
 law_original_query = on_command("群规原文", aliases={"群规全文", "laws原文"}, priority=2, block=True)
+law_brief_original_query = on_command(
+    "简明群规",
+    aliases={"群规简明版", "简明版群规", "简明群规全文"},
+    priority=2,
+    block=True,
+)
+law_faq_original_query = on_command(
+    "群规FAQ原文",
+    aliases={"群规FAQ全文", "FAQ全文", "FAQ原文", "问答全文"},
+    priority=2,
+    block=True,
+)
 
 LAW_ORIGINAL_FORWARD_BATCH_DELAY_SECONDS = 1.5
 LAW_ORIGINAL_FORWARD_RETRIES = 1
@@ -1054,16 +1069,47 @@ class LawOriginalForwardSendError(RuntimeError):
         super().__init__(f"第 {index}/{total} 批发送失败：{original}")
 
 
-async def _send_law_plain_chunks(matcher: Matcher, nodes: List[dict]):
+LAW_DOCUMENT_KEYS = {
+    "正文": "laws",
+    "正式": "laws",
+    "正式文本": "laws",
+    "原文": "laws",
+    "laws": "laws",
+    "law": "laws",
+    "简明": "brief",
+    "简明版": "brief",
+    "简明群规": "brief",
+    "brief": "brief",
+    "FAQ": "faq",
+    "faq": "faq",
+    "问答": "faq",
+    "群规FAQ": "faq",
+}
+
+LAW_DOCUMENT_TITLES = {
+    "laws": "群规原文",
+    "brief": "简明群规",
+    "faq": "群规 FAQ",
+}
+
+
+def _resolve_law_document_key(text: str, default: str = "laws") -> str:
+    normalized = str(text or "").strip()
+    if not normalized:
+        return default
+    return LAW_DOCUMENT_KEYS.get(normalized, default)
+
+
+async def _send_law_plain_chunks(matcher: Matcher, nodes: List[dict], title: str):
     chunks = chunk_law_original_plain_text(nodes, max_chars=2800)
     if not chunks:
-        await matcher.send("未找到可发送的群规原文内容。")
+        await matcher.send(f"未找到可发送的{title}内容。")
         return
 
     if len(chunks) > 1:
-        await matcher.send(f"群规原文将改用普通消息分 {len(chunks)} 段发送。")
+        await matcher.send(f"{title}将改用普通消息分 {len(chunks)} 段发送。")
     for index, chunk in enumerate(chunks, start=1):
-        prefix = f"群规原文（{index}/{len(chunks)}）\n" if len(chunks) > 1 else ""
+        prefix = f"{title}（{index}/{len(chunks)}）\n" if len(chunks) > 1 else ""
         await matcher.send(prefix + chunk)
 
 
@@ -1088,17 +1134,22 @@ async def _send_law_forward_chunks(chunks: List[List[dict]], send_chunk):
             await asyncio.sleep(LAW_ORIGINAL_FORWARD_BATCH_DELAY_SECONDS)
 
 
-@law_original_query.handle()
-async def _(matcher: Matcher, bot: Bot, event: MessageEvent):
-    nodes = build_law_original_forward_nodes(name="群规原文", uin=str(event.self_id))
+async def _send_law_document(
+    matcher: Matcher,
+    bot: Bot,
+    event: MessageEvent,
+    key: str,
+):
+    title = LAW_DOCUMENT_TITLES.get(key, "群规文档")
+    nodes = build_law_document_forward_nodes(key, name=title, uin=str(event.self_id))
     if not nodes:
-        await matcher.send("未找到 laws/laws.md。")
+        await matcher.send(f"未找到可发送的{title}。")
         return
     chunks = chunk_law_forward_nodes(nodes)
     try:
         if isinstance(event, GroupMessageEvent):
             if len(chunks) > 1:
-                await matcher.send(f"群规原文较长，将分 {len(chunks)} 条合并转发发送。")
+                await matcher.send(f"{title}较长，将分 {len(chunks)} 条合并转发发送。")
             async def send_group_chunk(chunk):
                 await bot.send_group_forward_msg(group_id=event.group_id, messages=chunk)
 
@@ -1106,32 +1157,48 @@ async def _(matcher: Matcher, bot: Bot, event: MessageEvent):
             return
         if isinstance(event, PrivateMessageEvent):
             if len(chunks) > 1:
-                await matcher.send(f"群规原文较长，将分 {len(chunks)} 条合并转发发送。")
+                await matcher.send(f"{title}较长，将分 {len(chunks)} 条合并转发发送。")
             async def send_private_chunk(chunk):
                 await bot.send_private_forward_msg(user_id=event.user_id, messages=chunk)
 
             await _send_law_forward_chunks(chunks, send_private_chunk)
             return
-        await matcher.send("当前消息类型不支持发送群规原文。")
+        await matcher.send(f"当前消息类型不支持发送{title}。")
     except LawOriginalForwardSendError as exc:
         traceback.print_exc()
         await matcher.send(
-            f"群规原文合并转发发送失败，从第 {exc.index}/{exc.total} 批起改用普通消息分段发送。原因：{exc.original}"
+            f"{title}合并转发发送失败，从第 {exc.index}/{exc.total} 批起改用普通消息分段发送。原因：{exc.original}"
         )
         remaining_nodes = [node for chunk in chunks[exc.index - 1 :] for node in chunk]
         try:
-            await _send_law_plain_chunks(matcher, remaining_nodes)
+            await _send_law_plain_chunks(matcher, remaining_nodes, title)
         except Exception as fallback_exc:
             traceback.print_exc()
-            await matcher.send(f"群规原文普通消息发送也失败：{fallback_exc}")
+            await matcher.send(f"{title}普通消息发送也失败：{fallback_exc}")
     except Exception as exc:
         traceback.print_exc()
-        await matcher.send(f"群规原文合并转发发送失败，改用普通消息分段发送。原因：{exc}")
+        await matcher.send(f"{title}合并转发发送失败，改用普通消息分段发送。原因：{exc}")
         try:
-            await _send_law_plain_chunks(matcher, nodes)
+            await _send_law_plain_chunks(matcher, nodes, title)
         except Exception as fallback_exc:
             traceback.print_exc()
-            await matcher.send(f"群规原文普通消息发送也失败：{fallback_exc}")
+            await matcher.send(f"{title}普通消息发送也失败：{fallback_exc}")
+
+
+@law_original_query.handle()
+async def _(matcher: Matcher, bot: Bot, event: MessageEvent, arg: Message = CommandArg()):
+    key = _resolve_law_document_key(arg.extract_plain_text(), default="laws")
+    await _send_law_document(matcher, bot, event, key)
+
+
+@law_brief_original_query.handle()
+async def _(matcher: Matcher, bot: Bot, event: MessageEvent):
+    await _send_law_document(matcher, bot, event, "brief")
+
+
+@law_faq_original_query.handle()
+async def _(matcher: Matcher, bot: Bot, event: MessageEvent):
+    await _send_law_document(matcher, bot, event, "faq")
 
 
 settings_entry = on_command("设置", priority=2, block=True)

@@ -7,7 +7,12 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from src.services._ai.tool_runtime import AIAssistantToolRuntimeMixin
 from src.support.core import gate_hit, tool_registry
-from src.support.law_docs import chunk_law_original_plain_text, register_law_doc_tools, search_law_docs
+from src.support.law_docs import (
+    build_law_document_forward_nodes,
+    chunk_law_original_plain_text,
+    register_law_doc_tools,
+    search_law_docs,
+)
 
 
 def test_law_search_handles_chinese_typo_with_fuzzy_terms():
@@ -15,10 +20,7 @@ def test_law_search_handles_chinese_typo_with_fuzzy_terms():
 
     assert result["success"] is True
     titles = [match["title"] for match in result["matches"]]
-    assert any(
-        "第四十二条" in title or "第四十四条" in title or "第四十六条" in title
-        for title in titles
-    )
+    assert any("第十三条" in title or "紧急状态" in title for title in titles)
 
 
 def test_law_search_does_not_force_match_unrelated_noise():
@@ -71,3 +73,12 @@ def test_law_original_plain_text_chunks_have_size_limit():
     assert chunks
     assert all(len(chunk) <= 500 for chunk in chunks)
     assert "第一段" in chunks[0]
+
+
+def test_law_public_documents_can_build_forward_nodes():
+    for key, expected in (("laws", "群宪法及治理条例"), ("brief", "简明群规"), ("faq", "群规 FAQ")):
+        nodes = build_law_document_forward_nodes(key, name=expected, uin="0")
+
+        assert nodes
+        contents = "\n".join(str(node["data"]["content"]) for node in nodes)
+        assert expected in contents

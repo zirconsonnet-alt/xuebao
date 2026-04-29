@@ -3,11 +3,11 @@ meta:
   title: 群法律可执行规范骨架 v0
   source_of_truth:
     file: laws/laws.md
-    version: 群宪法及条例（建议修订稿 v2）
+    version: 群宪法及治理条例
   status: acceptance_ready_executable_skeleton
-  previous_status: partial_dev_contract
-  revision: v0.2
-  acceptance_baseline_date: 2026-04-23
+  previous_status: acceptance_ready_executable_skeleton
+  revision: v0.3
+  acceptance_baseline_date: 2026-04-29
   design:
     - 静态规则与程序工作流分离
     - 机器可判定规则与人工裁量节点分离
@@ -26,9 +26,11 @@ meta:
 spec_semantics:
   document_kind: executable_skeleton
   verbatim_law_mirror: false
-  law_alignment_level: article_level_consistent_with_source_of_truth
+  law_alignment_level: compressed_article_and_appendix_consistent_with_source_of_truth
   acceptance_scope:
-    - 条号引用按“条”级与 source_of_truth 对齐
+    - 当前 source_of_truth 为 laws.md 的“正文二十条 + 附表一至五”
+    - 条文引用优先按当前 laws.md 正文条款和附表对齐
+    - 历史 rule atom、workflow、contract 名称可作为运行时兼容标识保留
     - 本文件显式区分 derived_from_law 与 implementation_only 结构
     - runtime binding 只允许 existing_runtime、existing_runtime_case_scoped、partial_existing_runtime、planned_runtime
   origin_tag_legend:
@@ -83,7 +85,7 @@ spec_semantics:
       - not_verbatim_from_law
 
 conventions:
-  article_ref_style: 第X条第Y项
+  article_ref_style: 第X条第Y款或附表X
   percentage_rounding: ceil
   voting_math:
     turnout_count_includes:
@@ -104,8 +106,8 @@ conventions:
 functions:
   ceil_ratio:
     source:
-      - 第四条第十项
-      - 附表说明
+      - 第四条第3款
+      - 附表二
     input:
       - numerator
       - denominator
@@ -113,17 +115,16 @@ functions:
     output: integer_threshold
   higher_of:
     source:
-      - 第三十四条第二至第四款
-      - 第五十条第一至第三款
+      - 附表二
     input:
       - threshold_a
       - threshold_b
     output: integer_threshold
   voter_roster_snapshot:
-    source: 第四条第五项
+    source: 第四条第1款
     description: 投票公告发出前 12 小时冻结选民名册
   notice_delivery_deadline:
-    source: 第六十条之一
+    source: 第十四条第1款
     description: 按送达渠道计算视为送达时间
 
 entities:
@@ -203,7 +204,7 @@ entities:
 
 derived_statuses:
   voting_member:
-    source: 第四条第二项
+    source: 第三条第1款
     when:
       all:
         - joined_days_gte: 7
@@ -219,14 +220,14 @@ derived_statuses:
       human_review_required:
         - obvious_duplicate_account
   legal_disenfranchisement:
-    source: 第四条第三项
+    source: 第三条第5款
     when_any:
       - formal_discipline_restriction_active
       - impeachment_freeze_active
       - reboot_freeze_active
       - temporary_procedural_freeze_explicitly_authorized
   high_risk_power:
-    source: 第四条第十一项
+    source: 第三条第6款
     values:
       - kick_member
       - mute_over_24h
@@ -260,7 +261,7 @@ rule_atoms:
         - whether_collective_authorization_has_been_bypassed
 
   - id: art_02_collective_sovereignty
-    article: 第二条
+    article: 第一条第2至3款
     category: static_constraint
     subject: collective_authority
     when:
@@ -281,7 +282,7 @@ rule_atoms:
         - whether_temporary_majority_is_used_to_break_core_constraints
 
   - id: art_03_norm_hierarchy
-    article: 第三条
+    article: 第一条第4至5款
     category: static_constraint
     subject: norm_resolution
     when:
@@ -304,7 +305,7 @@ rule_atoms:
         - core_guarantee_damage
 
   - id: art_04_02_voting_member_eligibility
-    article: 第四条第二项
+    article: 第三条第1款
     category: derived_status
     subject: member
     when:
@@ -323,7 +324,7 @@ rule_atoms:
         - obvious_duplicate_account_absent
 
   - id: art_04_05_voter_roster_freeze
-    article: 第四条第五项
+    article: 第四条第1款
     category: voting_constraint
     subject: voter_roster
     when:
@@ -348,7 +349,7 @@ rule_atoms:
         - explicit_correction_required_by_law
 
   - id: art_04_12_procedural_review_scope
-    article: 第四条第十二项
+    article: 第三条第8款
     category: static_constraint
     subject: procedural_review
     when:
@@ -370,7 +371,7 @@ rule_atoms:
         - manifest_conflict_with_higher_norm
 
   - id: art_05_basic_member_rights
-    article: 第五条
+    article: 第二条第2款
     category: rights_rule
     subject: voting_member
     when:
@@ -397,7 +398,7 @@ rule_atoms:
         - whether_initiation_right_has_been_improperly_blocked
 
   - id: art_06_basic_member_duties
-    article: 第六条
+    article: 第二条第3款
     category: conduct_rule
     subject: member_conduct
     when:
@@ -422,7 +423,7 @@ rule_atoms:
         - whether_objection_remains_within_procedural_channel
 
   - id: art_07_rule_basis_required
-    article: 第七条
+    article: 第二条第4至8款
     category: global_guard
     subject: governance_action
     when:
@@ -443,8 +444,8 @@ rule_atoms:
 
   - id: art_10_bot_boundary
     article:
-      - 第十条
-      - 第十条之一
+      - 第七至十条第3款
+      - 第七至十条第6至9款
     category: role_boundary
     subject: bot_and_platform_custodian
     when:
@@ -466,7 +467,7 @@ rule_atoms:
         - reasonable_time_for_handover
 
   - id: art_08_governance_organs_boundary
-    article: 第八条
+    article: 第六条第1款
     category: role_boundary
     subject: governance_organs
     when:
@@ -491,7 +492,7 @@ rule_atoms:
         - whether_bootstrap_override_remains_technical_only
 
   - id: art_09_office_separation
-    article: 第九条
+    article: 第六条第2至4款
     category: role_boundary
     subject: governance_offices
     when:
@@ -514,7 +515,7 @@ rule_atoms:
         - whether_action_uses_technical_control_to_replace_procedure
 
   - id: art_11_honor_owner_authority
-    article: 第十一条
+    article: 第七至十条第1款
     category: execution_rule
     subject: honor_owner
     when:
@@ -545,7 +546,7 @@ rule_atoms:
         - whether_record_tampering_occurred
 
   - id: art_12_elder_council_authority
-    article: 第十二条
+    article: 第七至十条第1至2款
     category: review_rule
     subject: elder_council
     when:
@@ -576,7 +577,7 @@ rule_atoms:
         - whether_proxy_action_exceeds_emergency_basis
 
   - id: art_13_recusal
-    article: 第十三条
+    article: 第六条第3款
     category: global_guard
     subject: officials
     when:
@@ -595,7 +596,7 @@ rule_atoms:
         - major_conflict_of_interest
 
   - id: art_14_proposal_classification
-    article: 第十四条
+    article: 第十一条第1款
     category: static_constraint
     subject: proposals
     when:
@@ -617,7 +618,7 @@ rule_atoms:
         - whether_subject_belongs_to_public_group_matter
 
   - id: art_15_proposal_required_fields
-    article: 第十五条
+    article: 第十一条第1款
     category: static_constraint
     subject: proposal_payload
     when:
@@ -639,7 +640,7 @@ rule_atoms:
       human_review_required: []
 
   - id: art_16_ordinary_proposal_review
-    article: 第十六条
+    article: 第十一条第4至5款
     category: workflow_guard
     subject: ordinary_proposal
     when:
@@ -660,7 +661,7 @@ rule_atoms:
         - procedural_reject_reason_validity
 
   - id: art_17_discussion_periods
-    article: 第十七条
+    article: 第十一条第6款及附表一
     category: timer_rule
     subject: proposal_discussion
     when:
@@ -683,7 +684,7 @@ rule_atoms:
         - temporary_measure_becoming_long_term
 
   - id: art_18_general_vote_thresholds
-    article: 第十八条
+    article: 第四条第2至3款及附表一
     category: voting_rule
     subject: votes
     when:
@@ -705,7 +706,7 @@ rule_atoms:
       human_review_required: []
 
   - id: art_19_proposal_record_and_publication
-    article: 第十九条
+    article: 第十一条第7至8款
     category: audit_rule
     subject: proposal_vote_record
     when:
@@ -726,7 +727,7 @@ rule_atoms:
       human_review_required: []
 
   - id: art_20_temporary_measure_limit
-    article: 第二十条
+    article: 附表一【临时管理措施】
     category: static_constraint
     subject: temporary_measure
     when:
@@ -750,7 +751,7 @@ rule_atoms:
         - permanent_deprivation_of_basic_rights
 
   - id: art_21_honor_owner_candidate_eligibility
-    article: 第二十一条
+    article: 第十五至十九条【荣誉群主选举】
     category: workflow_guard
     subject: honor_owner_election
     when:
@@ -773,7 +774,7 @@ rule_atoms:
         - willingness_and_supervision_commitment_confirmed
 
   - id: art_22_honor_owner_nomination_channels
-    article: 第二十二条
+    article: 第十五至十九条【荣誉群主选举】
     category: workflow_guard
     subject: honor_owner_election
     when:
@@ -796,7 +797,7 @@ rule_atoms:
         - candidate_commitment_confirmed_for_joint_recommendation
 
   - id: art_24_honor_owner_term_and_caretaker
-    article: 第二十四条
+    article: 第十五至十九条【荣誉群主选举】
     category: timer_rule
     subject: honor_owner_term
     when:
@@ -823,7 +824,7 @@ rule_atoms:
         - whether_only_daily_and_safety_scope_is_used
 
   - id: art_25_honor_owner_vacancy_and_proxy
-    article: 第二十五条
+    article: 第十五至十九条【荣誉群主选举】
     category: workflow_guard
     subject: honor_owner_vacancy
     when:
@@ -851,7 +852,7 @@ rule_atoms:
         - whether_dispute_must_go_to_full_voter_vote
 
   - id: art_26_honor_owner_duty_requirements
-    article: 第二十六条
+    article: 第七至十条第1款
     category: governance_duty
     subject: honor_owner
     when:
@@ -873,16 +874,16 @@ rule_atoms:
         - whether_summary_publication_is_sufficient
 
   - id: art_27_elder_council_composition
-    article: 第二十七条
+    article: 第十五至十九条【元老会选举与会议】
     category: derived_status
     subject: elder_council
     when:
       trigger: council_size_or_term_evaluated
     then:
       - constrain_seat_count_to_odd_between_3_and_7
-      - default_to_3_seats_when_no_explicit_basic_governance_norm_sets_5_or_7
-      - record_term_days_90
-      - permit_reelection
+      - default_to_3_seats_when_voting_members_lt_30
+      - allow_small_scale_council_1_to_3_when_voting_members_lt_12
+      - require_replenishment_or_new_election_within_30d_after_voting_members_reach_12
     deadline: before_nomination_publicity_opened
     exceptions: []
     review_entry: gate_elder_council_seat_count_review
@@ -890,13 +891,13 @@ rule_atoms:
       overall: mixed
       machine_decidable:
         - seat_count_is_odd_and_between_3_and_7
-        - default_size_3_when_no_explicit_override
-        - term_days_90_recorded
+        - default_size_3_when_voting_members_lt_30
+        - small_scale_threshold_detected
       human_review_required:
-        - whether_basic_governance_norm_explicitly_sets_5_or_7
+        - whether_small_scale_exception_applies
 
   - id: art_28_elder_candidate_eligibility
-    article: 第二十八条
+    article: 第十五至十九条【元老会选举与会议】
     category: workflow_guard
     subject: elder_election
     when:
@@ -922,16 +923,16 @@ rule_atoms:
         - whether_other_major_discipline_disqualifies
 
   - id: art_29_elder_election_process
-    article: 第二十九条
+    article: 第十五至十九条【元老会选举与会议】
     category: voting_rule
     subject: elder_election
     when:
       trigger: elder_election_vote_or_nomination_window_evaluated
     then:
       - require_nomination_publicity_min_24h
-      - allow_each_voter_to_select_no_more_than_seat_count_candidates
+      - allow_each_voter_to_select_no_more_than_half_seat_count_rounded_up
       - elect_top_ranked_candidates_within_seat_count
-      - runoff_if_last_seat_tied
+      - leave_seats_vacant_and_start_by_election_if_min_vote_share_not_reached
       - require_turnout_at_least_half_of_all_voting_members
     deadline: before_result_publication
     exceptions: []
@@ -940,14 +941,14 @@ rule_atoms:
       overall: machine_decidable
       machine_decidable:
         - nomination_duration_gte_24h
-        - max_selection_lte_seat_count
+        - max_selection_lte_half_seat_count_rounded_up
         - ranked_winner_selection
-        - runoff_if_last_seat_tied
+        - min_vote_share_20_percent
         - turnout_threshold_math
       human_review_required: []
 
   - id: art_30_elder_council_decision_thresholds
-    article: 第三十条
+    article: 第十五至十九条【元老会选举与会议】
     category: review_rule
     subject: elder_council
     when:
@@ -972,7 +973,7 @@ rule_atoms:
         - whether_decision_is_high_risk
 
   - id: art_31_elder_council_review_deadlines
-    article: 第三十一条
+    article: 第七至十条第2款
     category: timer_rule
     subject: elder_council
     when:
@@ -982,7 +983,7 @@ rule_atoms:
       - emergency_requests_must_be_responded_within_2h
       - timeout_counts_as_procedural_dereliction
       - timeout_must_record_supervision_entry
-      - timeout_must_escalate_by_order_bot_then_other_unrecused_elders_then_honor_owner_then_any_two_voting_members
+      - timeout_must_escalate_by_order_bot_then_announced_daily_agent_then_other_unrecused_elders_then_any_two_voting_members
     deadline: per_request_type
     exceptions: []
     review_entry: gate_elder_council_timeout_fallback_review
@@ -997,7 +998,7 @@ rule_atoms:
         - whether_next_actor_is_available
 
   - id: art_32_elder_council_prohibitions
-    article: 第三十二条
+    article: 第七至十条第1款
     category: global_guard
     subject: elder_council
     when:
@@ -1023,7 +1024,7 @@ rule_atoms:
         - obstruction_of_lawful_procedure
 
   - id: art_34_impeachment_establishment
-    article: 第三十四条
+    article: 第十五至十九条【弹劾】及附表二
     category: workflow_guard
     subject: honor_owner_impeachment
     when:
@@ -1047,7 +1048,7 @@ rule_atoms:
         - evidence_bundle_completeness
 
   - id: art_35_impeachment_freeze
-    article: 第三十五条
+    article: 第十五至十九条【弹劾】
     category: lock_rule
     subject: honor_owner_impeachment
     when:
@@ -1068,7 +1069,7 @@ rule_atoms:
         - objective_safety_risk
 
   - id: art_33_honor_owner_impeachment_reason_catalog
-    article: 第三十三条
+    article: 第十五至十九条【弹劾】
     category: review_rule
     subject: honor_owner_impeachment
     when:
@@ -1092,7 +1093,7 @@ rule_atoms:
         - whether_fact_pattern_matches_catalog
 
   - id: art_37_honor_owner_impeachment_outcomes
-    article: 第三十七条
+    article: 第十五至十九条【弹劾】
     category: workflow_guard
     subject: honor_owner_impeachment
     when:
@@ -1115,7 +1116,7 @@ rule_atoms:
         - whether_followup_daily_management_should_be_started
 
   - id: art_38_elder_impeachment_reason_catalog
-    article: 第三十八条
+    article: 第十五至十九条【弹劾】
     category: review_rule
     subject: elder_impeachment
     when:
@@ -1139,8 +1140,8 @@ rule_atoms:
 
   - id: art_40_41_emergency_definition
     article:
-      - 第四十条
-      - 第四十一条
+      - 第十三条第1款
+      - 第十三条第2款
     category: review_rule
     subject: emergency_state
     when:
@@ -1161,7 +1162,7 @@ rule_atoms:
         - realistic_ongoing_immediate_risk
 
   - id: art_42_emergency_motion_establishment
-    article: 第四十二条
+    article: 第十三条第3款
     category: workflow_guard
     subject: emergency_protection
     when:
@@ -1184,7 +1185,7 @@ rule_atoms:
         - objective_risk_exists
 
   - id: art_43_honor_owner_response
-    article: 第四十三条
+    article: 第十三条第4款
     category: timer_rule
     subject: emergency_protection
     when:
@@ -1210,8 +1211,8 @@ rule_atoms:
 
   - id: art_44_46_emergency_measure_limits
     article:
-      - 第四十四条
-      - 第四十六条
+      - 第十三条第5至6款
+      - 第十三条第7至8款
     category: workflow_guard
     subject: emergency_measure
     when:
@@ -1247,7 +1248,7 @@ rule_atoms:
         - objective_inability_to_restore_participation
 
   - id: art_45_emergency_prohibitions
-    article: 第四十五条
+    article: 第十三条第7款
     category: static_constraint
     subject: emergency_protection
     when:
@@ -1269,7 +1270,7 @@ rule_atoms:
         - retaliation
 
   - id: art_47_emergency_post_review
-    article: 第四十七条
+    article: 第十三条第7至8款
     category: workflow_guard
     subject: emergency_protection
     when:
@@ -1291,7 +1292,7 @@ rule_atoms:
         - abuse_confirmed
 
   - id: art_48_reboot_constitutional_remedy_nature
-    article: 第四十八条
+    article: 第十五至十九条【元老会整体重组】
     category: static_constraint
     subject: elder_reboot
     when:
@@ -1311,7 +1312,7 @@ rule_atoms:
         - whether_reason_is_institutional_not_daily_political_conflict
 
   - id: art_49_reboot_applicability_catalog
-    article: 第四十九条
+    article: 第十五至十九条【元老会整体重组】
     category: review_rule
     subject: elder_reboot
     when:
@@ -1336,7 +1337,7 @@ rule_atoms:
         - whether_other_institutional_breakdown_reason_is_sufficient
 
   - id: art_54_reboot_effects_and_interim_supervision
-    article: 第五十四条
+    article: 第十五至十九条【元老会整体重组】
     category: workflow_guard
     subject: elder_reboot
     when:
@@ -1364,7 +1365,7 @@ rule_atoms:
         - whether_specific_matter_counts_as_honor_owner_self_supervision
 
   - id: art_50_reboot_establishment
-    article: 第五十条
+    article: 第十五至十九条【元老会整体重组】及附表二
     category: workflow_guard
     subject: elder_reboot
     when:
@@ -1389,7 +1390,7 @@ rule_atoms:
         - same_major_fact_detection
 
   - id: art_51_reboot_protection_scope
-    article: 第五十一条
+    article: 第十五至十九条【元老会整体重组】
     category: lock_rule
     subject: elder_reboot
     when:
@@ -1413,8 +1414,8 @@ rule_atoms:
 
   - id: art_52_55_reboot_cooling_and_frequency
     article:
-      - 第五十二条
-      - 第五十五条
+      - 第十五至十九条【元老会整体重组】
+      - 第十五至十九条【元老会整体重组】
     category: workflow_guard
     subject: elder_reboot
     when:
@@ -1448,7 +1449,7 @@ rule_atoms:
         - malicious_preemptive_repeat
 
   - id: art_56_daily_management_ladder
-    article: 第五十六条
+    article: 第十五至十九条【日常管理与内容治理】
     category: workflow_guard
     subject: daily_management
     when:
@@ -1473,7 +1474,7 @@ rule_atoms:
         - whether_real_safety_risk_exists
 
   - id: art_57_daily_management_sanction_catalog
-    article: 第五十七条
+    article: 第十五至十九条【日常管理与内容治理】
     category: sanction_rule
     subject: daily_management
     when:
@@ -1499,7 +1500,7 @@ rule_atoms:
         - whether_escalation_to_formal_is_required
 
   - id: art_58_evidence_baseline
-    article: 第五十八条
+    article: 第五条及附表四
     category: evidence_rule
     subject: evidence
     when:
@@ -1523,7 +1524,7 @@ rule_atoms:
         - minimum_sufficient_summary
 
   - id: art_59_formal_discipline_scope
-    article: 第五十九条
+    article: 第十五至十九条【快速移出与正式处分】
     category: sanction_rule
     subject: formal_discipline
     when:
@@ -1547,7 +1548,7 @@ rule_atoms:
         - whether_real_safety_risk_requires_emergency_first
 
   - id: art_60_formal_discipline_acceptance
-    article: 第六十条
+    article: 第十五至十九条【快速移出与正式处分】及附表二
     category: workflow_guard
     subject: formal_discipline
     when:
@@ -1575,7 +1576,7 @@ rule_atoms:
         - council_cannot_act
 
   - id: art_60_1_notice_delivery
-    article: 第六十条之一
+    article: 第十四条第1至2款
     category: workflow_guard
     subject: procedural_notice
     when:
@@ -1603,7 +1604,7 @@ rule_atoms:
         - objective_reason
 
   - id: art_61_defense_window
-    article: 第六十一条
+    article: 第十二条第4款
     category: timer_rule
     subject: formal_discipline
     when:
@@ -1629,7 +1630,7 @@ rule_atoms:
         - major_evidence_summary_sufficient
 
   - id: art_62_evidence_review_for_major_sanction
-    article: 第六十二条
+    article: 第五条及附表四
     category: evidence_rule
     subject: formal_discipline
     when:
@@ -1652,7 +1653,7 @@ rule_atoms:
         - truncated_material_significance
 
   - id: art_63_formal_discipline_vote
-    article: 第六十三条
+    article: 附表一【正式处分】
     category: voting_rule
     subject: formal_discipline
     when:
@@ -1675,7 +1676,7 @@ rule_atoms:
       human_review_required: []
 
   - id: art_64_execution_limits
-    article: 第六十四条
+    article: 第十五至十九条【快速移出与正式处分】
     category: execution_rule
     subject: formal_discipline
     when:
@@ -1700,7 +1701,7 @@ rule_atoms:
         - unnecessary_privacy_leak
 
   - id: art_65_review_entry
-    article: 第六十五条
+    article: 第十四条第6款及附表四
     category: workflow_guard
     subject: formal_discipline_review
     when:
@@ -1727,7 +1728,7 @@ rule_atoms:
         - key_evidence_false
 
   - id: art_66_emergency_to_formal_bridge
-    article: 第六十六条
+    article: 第十三条第7至8款
     category: workflow_guard
     subject: emergency_and_formal_discipline
     when:
@@ -1751,7 +1752,7 @@ rule_atoms:
         - repeated_extension_for_bypass
 
   - id: art_67_interpretation_boundary
-    article: 第六十七条
+    article: 第二十条第1至2款
     category: global_guard
     subject: temporary_interpretation
     when:
@@ -1774,7 +1775,7 @@ rule_atoms:
         - whether_interpretation_only_keeps_procedure_running
 
   - id: art_68_revision_boundary
-    article: 第六十八条
+    article: 第二十条第3至4款
     category: workflow_guard
     subject: norm_amendment
     when:
@@ -1797,7 +1798,7 @@ rule_atoms:
         - whether_wording_vaguely_cancels_core_guarantees
 
   - id: art_69_effective_and_non_retroactivity
-    article: 第六十九条
+    article: 第二十条第5至8款
     category: transition_rule
     subject: law_regime_transition
     when:
@@ -1824,9 +1825,8 @@ rule_atoms:
 threshold_sets:
   ordinary_proposal:
     sources:
-      - 第十八条第一项
-      - 第十八条第五项
-      - 第十八条第七项
+      - 第十一条
+      - 附表一【普通议题】
     approval:
       type: approve_gt_reject
       approve_min_of_turnout: 2/5
@@ -1835,9 +1835,9 @@ threshold_sets:
     anonymous: false
   basic_governance_norm:
     sources:
-      - 第十八条第二项
-      - 第十八条第五项
-      - 第十八条第七项
+      - 第一条第4款
+      - 第十一条
+      - 附表一【基础治理条例案】
     approval:
       type: approve_gt_reject
       approve_min_of_turnout: 1/2
@@ -1846,9 +1846,8 @@ threshold_sets:
     anonymous: false
   constitutional_amendment:
     sources:
-      - 第十八条第三项
-      - 第十八条第五项
-      - 第十八条第七项
+      - 第二十条第3款
+      - 附表一【宪制修订案】
     approval:
       type: approve_gte_effective_votes_2_over_3
       approve_min_of_turnout: 3/5
@@ -1857,9 +1856,8 @@ threshold_sets:
     anonymous: false
   honor_owner_election_single_candidate:
     sources:
-      - 第二十三条第四项
-      - 第二十三条第六项
-      - 第二十三条第七项
+      - 第十五至十九条【荣誉群主选举】
+      - 附表一【荣誉群主选举】
     approval:
       type: approve_gt_reject
       approve_min_of_turnout: 1/2
@@ -1868,9 +1866,8 @@ threshold_sets:
     anonymous: true
   honor_owner_election_runoff:
     sources:
-      - 第二十三条第五项
-      - 第二十三条第六项
-      - 第二十三条第七项
+      - 第十五至十九条【荣誉群主选举】
+      - 附表一【荣誉群主选举】
     approval:
       type: highest_vote_wins
       winner_min_of_turnout: 1/2
@@ -1879,17 +1876,21 @@ threshold_sets:
     anonymous: true
   elder_election:
     sources:
-      - 第二十九条
-      - 第十八条第七项
+      - 第十五至十九条【元老会选举与会议】
+      - 附表一【元老会选举】
+      - 附表二【门槛计算示例】
     approval:
       type: top_n_by_votes
-      tie_breaker: runoff_if_last_seat_tied
+      winner_min_of_turnout: 1/5
+      incomplete_seats: vacant_and_by_election
     turnout_min_of_all_voting_members: 1/2
     min_vote_period: 12h
     anonymous: true
   honor_owner_impeachment:
     sources:
-      - 第三十六条
+      - 第十二条
+      - 第十五至十九条【弹劾】
+      - 附表一【荣誉群主弹劾】
     approval:
       type: approve_gte_effective_votes_2_over_3
       approve_min_of_turnout: 3/5
@@ -1898,17 +1899,20 @@ threshold_sets:
     anonymous: true
   elder_impeachment:
     sources:
-      - 第三十九条第五款
-      - 第十八条第七项
+      - 第十二条
+      - 第十五至十九条【弹劾】
+      - 附表一【元老会成员弹劾】
     approval:
       type: approve_gte_effective_votes_2_over_3
       approve_min_of_turnout: 3/5
     turnout_min_of_all_voting_members: 1/2
-    min_vote_period: 12h
+    min_vote_period: 24h
     anonymous: true
   elder_reboot:
     sources:
-      - 第五十三条
+      - 第十二条
+      - 第十五至十九条【元老会整体重组】
+      - 附表一【元老会整体重组】
     approval:
       type: approve_gte_effective_votes_2_over_3
       approve_min_of_turnout: 3/5
@@ -1917,8 +1921,9 @@ threshold_sets:
     anonymous: true
   formal_discipline_long_mute:
     sources:
-      - 第六十三条第二款
-      - 第六十三条第六款
+      - 第十二条
+      - 第十五至十九条【快速移出与正式处分】
+      - 附表一【正式处分：长期禁言不超过 7 日】
     approval:
       type: approve_gt_reject
       approve_min_of_turnout: 2/5
@@ -1927,8 +1932,9 @@ threshold_sets:
     anonymous: true
   formal_discipline_restrict_candidacy:
     sources:
-      - 第六十三条第三款
-      - 第六十三条第六款
+      - 第十二条
+      - 第十五至十九条【快速移出与正式处分】
+      - 附表一【正式处分：限制被选举资格】
     approval:
       type: approve_gt_reject
       approve_min_of_turnout: 1/2
@@ -1937,8 +1943,9 @@ threshold_sets:
     anonymous: true
   formal_discipline_restrict_vote_or_remove:
     sources:
-      - 第六十三条第四款
-      - 第六十三条第六款
+      - 第十二条
+      - 第十五至十九条【快速移出与正式处分】
+      - 附表一【正式处分：限制表决资格或移出群聊】
     approval:
       type: approve_gte_effective_votes_2_over_3
       approve_min_of_turnout: 3/5
@@ -1955,16 +1962,16 @@ human_review_gates:
   gate_member_basic_rights_boundary:
     question: 当前治理动作是否不当剥夺成员的讨论、提案、知情、申辩、复核、免受报复或基本尊严、隐私与群聊安全
     sources:
-      - 第五条
+      - 第二条第2款
   gate_member_basic_duty_match:
     question: 当前成员行为是否落入基本义务所禁止的侵害、虚构紧急状态、恶意重复提案或干扰程序
     sources:
-      - 第六条
+      - 第二条第3款
   gate_duplicate_account_determination:
     question: 是否构成明显重复小号
     sources:
-      - 第四条第二项
-      - 第四条第四项
+      - 第三条第4款
+      - 第四条第9至11款
     required_output:
       - confirmed
       - rejected
@@ -1972,150 +1979,149 @@ human_review_gates:
   gate_norm_conflict_core_guarantee:
     question: 该解释或适用是否损害上位规范核心保障
     sources:
-      - 第三条
+      - 第一条第4至5款
   gate_group_matter_scope:
     question: 提案是否属于群内事项，是否明显违反上位规范
     sources:
-      - 第四条第十二项
-      - 第十六条
+      - 第三条第8款
+      - 第十一条
   gate_governance_authority_boundary:
     question: 当前动作是否落在荣誉群主、元老会、机器人或技术保管人的法定权限边界内
     sources:
-      - 第八条
-      - 第十一条
-      - 第十二条
+      - 第六条
+      - 第七至十条
   gate_bootstrap_override_boundary:
     question: 当前人工或技术保管动作是否只是必要初始化/修复，而未替代正式治理程序
     sources:
-      - 第九条第四项
-      - 第十条之一
+      - 第七至十条第3至5款
+      - 第二十条第6至8款
   gate_elder_council_seat_count_review:
     question: 当前元老会目标席位是否已有明确基础治理条例设置
     sources:
-      - 第二十七条第二款
+      - 第十五至十九条【元老会选举与会议】
   gate_elder_candidate_commitment_review:
     question: 候选人是否已明确承诺遵守程序中立和回避规则
     sources:
-      - 第二十八条第三项
+      - 第十五至十九条【元老会选举与会议】
   gate_honor_owner_candidate_commitment_review:
     question: 荣誉群主候选人是否已明确表示愿意履职并接受监督
     sources:
-      - 第二十一条第三项
-      - 第二十二条
+      - 第十五至十九条【荣誉群主选举】
   gate_conflict_of_interest:
     question: 是否存在需要回避的重大利益冲突
     sources:
-      - 第十三条
-      - 第四十三条第二款
+      - 第六条第3款
+      - 第十二条第3款
   gate_elder_council_high_risk_review:
     question: 当前元老会决定是否属于高风险程序判断或特别表决事项
     sources:
-      - 第三十条第三款
+      - 第十五至十九条【元老会选举与会议】
   gate_elder_council_timeout_fallback_review:
     question: 元老会是否已经超时，以及下一顺位承接主体是否可启动
     sources:
-      - 第三十一条
+      - 第七至十条第2款
+      - 第十一条第4款
   gate_emergency_state_confirmation:
     question: 当前是否属于现实、持续、紧迫的紧急状态
     sources:
-      - 第四十条
-      - 第四十一条
+      - 第十三条第1至2款
   gate_objective_safety_risk_exception:
     question: 是否存在客观安全风险，以至于可触发例外处理
     sources:
-      - 第三十五条第二款
-      - 第四十二条第四款
-      - 第四十四条第五项
-      - 第五十一条第三项
+      - 第二条第6款
+      - 第七至十条第3至5款
+      - 第十三条
+      - 附表五
   gate_same_major_fact_and_institutional_reason:
     question: 是否属于同一主要事实 / 同一制度性理由，或是否出现新的重大事实
     sources:
-      - 第四十九条
-      - 第五十条
-      - 第五十五条
+      - 第十五至十九条【元老会整体重组】
+      - 第十三条第8款
   gate_reboot_institutional_breakdown_review:
     question: 当前重组元老会动议是否基于制度性失灵，而非对个案裁决、立场差异或私人冲突的不满
     sources:
-      - 第四十八条
-      - 第四十九条
-      - 第五十四条
+      - 第十五至十九条【元老会整体重组】
   gate_signature_identity_and_case_completeness:
     question: 联署人身份是否有效，案件材料是否达到形式完备
     sources:
-      - 第三十四条
-      - 第三十九条第二款
-      - 第五十条
+      - 第十二条第2至3款
+      - 附表二
   gate_impeachment_reason_catalog_match:
     question: 当前事实是否落入法定弹劾理由目录
     sources:
-      - 第三十三条
-      - 第三十八条
+      - 第十五至十九条【弹劾】
   gate_evidence_sufficiency_and_privacy:
     question: 证据是否达到可复核、相互印证且兼顾隐私保护
     sources:
-      - 第五十八条
-      - 第六十二条
+      - 第五条
+      - 附表四
   gate_notice_feasibility_review:
     question: 是否已尝试可行送达方式，且是否仍保留陈述与复核渠道
     sources:
-      - 第六十条之一
-      - 第六十一条
+      - 第十四条第1至2款
+      - 第十二条第4款
   gate_review_reason_validity:
     question: 复核理由是否属于法定范围
     sources:
-      - 第六十五条第二款
+      - 第十四条第6款
+      - 附表四
   gate_vote_validity_review:
     question: 投票过程是否存在程序错误、重复票或身份不可确认票
     sources:
-      - 第四条第五至第九项
-      - 第十八条
-      - 第十九条
+      - 第四条
+      - 第十一条第7至8款
+      - 第十四条第3至5款
   gate_retaliation_review:
     question: 该管理动作是否构成压制批评或报复
     sources:
-      - 第四十五条
+      - 第二条第2款
+      - 第十三条第7款
   gate_elder_council_prohibition_review:
     question: 当前元老会动作是否构成压制异见、泄密、不回避、越权或阻碍合法程序
     sources:
-      - 第三十二条
+      - 第七至十条第1款
   gate_bypass_formal_rulemaking:
     question: 当前动作是否在以临时措施或重复续期规避正式程序
     sources:
+      - 第十一条
+      - 第十三条第7至8款
       - 第二十条
-      - 第六十六条
   gate_platform_constraint_review:
     question: 平台限制、账号安全或外部强制规则是否真实存在且已采取最小必要保全
     sources:
-      - 第十条之一第四款
+      - 序言
+      - 第七至十条第6至9款
+      - 第十五至十九条【群迁移与权限交接】
   gate_roster_correction_review:
     question: 是否属于名册冻结后的允许更正事项
     sources:
-      - 第四条第五项
+      - 第四条第1款
+      - 第四条第9至11款
   gate_rule_basis_match:
     question: 拟执行动作是否有明确规则依据
     sources:
-      - 第七条
+      - 第二条第4至8款
   gate_privacy_safe_public_summary:
     question: 公开摘要是否已避免不必要的隐私泄露
     sources:
-      - 第五十八条
-      - 第六十四条第四款
+      - 第五条第5至6款
+      - 第十四条第3至5款
   gate_temporary_interpretation_boundary:
     question: 临时解释是否越过“仅为维持程序继续所必要”的边界
     sources:
-      - 第六十七条
+      - 第二十条第1至2款
   gate_core_norm_amendment_boundary:
     question: 当前修订是否触及群规总则、基本权力结构或核心制度，并因此必须适用宪制修订案程序与明确条文变更
     sources:
-      - 第六十八条
+      - 第二十条第3至4款
   gate_non_retroactivity_exception_review:
     question: 生效前已完成的旧程序是否存在重大程序违法或安全风险，因而可以作为不溯及既往的例外复核
     sources:
-      - 第六十九条
+      - 第二十条第5至8款
   gate_emergency_abuse_review:
     question: 紧急措施是否构成滥用
     sources:
-      - 第四十七条
+      - 第十三条第7至8款
 
 human_review_gate_contracts:
   defaults:
@@ -2261,19 +2267,19 @@ human_review_gate_contracts:
 
 lock_types:
   honor_owner_powers:
-    sources: 第三十五条第一款
+    sources: 第十五至十九条【弹劾】
     applies_to: target_honor_owner
     released_when:
       - impeachment_closed
       - impeachment_rejected
       - partial_measure_replaced_by_new_case_resolution
   elder_powers:
-    sources: 第三十九条第四款
+    sources: 第十五至十九条【弹劾】
     applies_to: target_elder
     released_when:
       - impeachment_closed
   reboot_procedure_protection:
-    sources: 第五十一条
+    sources: 第十五至十九条【元老会整体重组】
     applies_to:
       - proposers
       - endorsers
@@ -2281,28 +2287,28 @@ lock_types:
     released_when:
       - reboot_closed
   temporary_mute:
-    sources: 第四十四条第二项
+    sources: 第十三条第5款
     applies_to: emergency_target
     released_when:
       - expiry_reached
       - revoked_on_review
       - converted_and_credited_in_formal_discipline
   temporary_motion_restriction:
-    sources: 第四十四条第三项
+    sources: 第十三条第5款
     applies_to: emergency_target
     released_when:
       - expiry_reached
       - revoked_on_review
   daily_management_motion_restriction:
     sources:
-      - 第五十六条
-      - 第五十七条
+      - 第十五至十九条【日常管理与内容治理】
+      - 附表五
     applies_to: ordinary_management_target
     released_when:
       - expiry_reached
       - replaced_by_formal_discipline
   temporary_high_risk_power_suspension:
-    sources: 第四十四条第四项
+    sources: 第十三条第5款
     applies_to: emergency_target
     released_when:
       - expiry_reached
@@ -2641,13 +2647,9 @@ side_effect_contracts:
 workflow_fsm:
   ordinary_proposal:
     sources:
-      - 第十四条
-      - 第十五条
-      - 第十六条
-      - 第十七条
-      - 第十八条
-      - 第十九条
-      - 第二十条
+      - 第十一条
+      - 附表一
+      - 附表二
     initial_state: filed
     terminal_states:
       - closed
@@ -2712,11 +2714,9 @@ workflow_fsm:
 
   honor_owner_election:
     sources:
-      - 第二十一条
-      - 第二十二条
-      - 第二十三条
-      - 第二十四条
-      - 第二十五条
+      - 第十五至十九条【荣誉群主选举】
+      - 附表一
+      - 附表二
     initial_state: nomination_publicity
     terminal_states:
       - closed
@@ -2780,12 +2780,9 @@ workflow_fsm:
 
   elder_election:
     sources:
-      - 第二十七条
-      - 第二十八条
-      - 第二十九条
-      - 第三十条
-      - 第三十一条
-      - 第三十二条
+      - 第十五至十九条【元老会选举与会议】
+      - 附表一
+      - 附表二
     initial_state: nomination_publicity
     terminal_states:
       - closed
@@ -2840,11 +2837,10 @@ workflow_fsm:
 
   honor_owner_impeachment:
     sources:
-      - 第三十三条
-      - 第三十四条
-      - 第三十五条
-      - 第三十六条
-      - 第三十七条
+      - 第十二条
+      - 第十五至十九条【弹劾】
+      - 附表一
+      - 附表二
     initial_state: filed
     terminal_states:
       - approved
@@ -2906,8 +2902,10 @@ workflow_fsm:
 
   elder_impeachment:
     sources:
-      - 第三十八条
-      - 第三十九条
+      - 第十二条
+      - 第十五至十九条【弹劾】
+      - 附表一
+      - 附表二
     initial_state: filed
     terminal_states:
       - approved
@@ -2964,8 +2962,10 @@ workflow_fsm:
 
   daily_management:
     sources:
-      - 第五十六条
-      - 第五十七条
+      - 第二条
+      - 第十五至十九条【日常管理与内容治理】
+      - 附表三
+      - 附表五
     initial_state: submitted
     terminal_states:
       - closed
@@ -2986,15 +2986,11 @@ workflow_fsm:
 
   emergency_protection:
     sources:
-      - 第四十条
-      - 第四十一条
-      - 第四十二条
-      - 第四十三条
-      - 第四十四条
-      - 第四十五条
-      - 第四十六条
-      - 第四十七条
-      - 第六十六条
+      - 第十三条
+      - 第十四条
+      - 附表二
+      - 附表四
+      - 附表五
     initial_state: reported
     terminal_states:
       - expired
@@ -3071,14 +3067,10 @@ workflow_fsm:
 
   elder_reboot:
     sources:
-      - 第四十八条
-      - 第四十九条
-      - 第五十条
-      - 第五十一条
-      - 第五十二条
-      - 第五十三条
-      - 第五十四条
-      - 第五十五条
+      - 第十二条
+      - 第十五至十九条【元老会整体重组】
+      - 附表一
+      - 附表二
     initial_state: filed
     terminal_states:
       - approved
@@ -3138,14 +3130,13 @@ workflow_fsm:
 
   formal_discipline:
     sources:
-      - 第五十九条
-      - 第六十条
-      - 第六十条之一
-      - 第六十一条
-      - 第六十二条
-      - 第六十三条
-      - 第六十四条
-      - 第六十六条
+      - 第十二条
+      - 第十四条
+      - 第十五至十九条【快速移出与正式处分】
+      - 附表一
+      - 附表二
+      - 附表四
+      - 附表五
     initial_state: submitted
     terminal_states:
       - approved
@@ -3212,7 +3203,9 @@ workflow_fsm:
 
   formal_discipline_review:
     sources:
-      - 第六十五条
+      - 第十四条
+      - 附表二
+      - 附表四
     initial_state: requested
     terminal_states:
       - reopened
@@ -4655,28 +4648,28 @@ projections:
 invariants:
   - id: inv_group_not_private_property
     rule: group_cannot_be_treated_as_private_or_factional_property
-    source: 第一条第二项
+    source: 第一条第1至3款
   - id: inv_collective_sovereignty_over_office_and_technical_power
     rule: no_office_or_technical_control_may_override_collective_authorized_group_norms
-    source: 第二条
+    source: 第一条第2至3款
   - id: inv_basic_member_rights_require_lawful_process
     rule: no_basic_member_right_restriction_without_explicit_lawful_process
     source:
-      - 第五条
-      - 第七条
+      - 第二条第2款
+      - 第二条第7至8款
   - id: inv_single_honor_owner
     rule: same_time_at_most_one_active_honor_owner
   - id: inv_no_major_sanction_without_reviewable_record
     rule: no_major_sanction_if_no_reviewable_record
   - id: inv_no_major_sanction_if_facts_unclear
     rule: if_key_fact_unclear_then_no_major_sanction
-    source: 第六十二条第四款
+    source: 第五条第2款
   - id: inv_emergency_not_permanent
     rule: emergency_measure_cannot_create_permanent_sanction
-    source: 第四十五条第二项
+    source: 第十三条第7款
   - id: inv_rights_sensitive_vote_anonymous
     rule: rights_or_office_affecting_cases_must_use_anonymous_vote
-    source: 第十八条第七项
+    source: 第十二条第5款
   - id: inv_bot_not_above_law
     rule: bot_cannot_expand_its_own_governance_power_beyond_norms
-    source: 第十条第一款
+    source: 第七至十条第3款
