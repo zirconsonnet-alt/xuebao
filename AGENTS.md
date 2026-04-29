@@ -257,6 +257,6 @@
 对高影响、高副作用、关键语义不清的改动必须先确认。
 
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+Current Spec Kit feature: `002-server-one-click-deploy`.
+For implementation context, read `specs/002-server-one-click-deploy/plan.md`.
 <!-- SPECKIT END -->

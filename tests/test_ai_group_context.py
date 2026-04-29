@@ -219,3 +219,28 @@ def test_group_user_message_registers_only_current_and_reply_images(monkeypatch)
 
     assert "内容：雪豹看这个 [图片:img_001]" in message_text
     assert "回复内容：[图片:img_002]" in message_text
+
+
+def test_ai_media_cache_skips_copy_when_storage_guard_blocks(tmp_path: Path, monkeypatch) -> None:
+    import src.services._ai.group_state as group_state_module
+
+    assistant = DummyReplyAssistant()
+    source_path = tmp_path / "source.jpg"
+    source_path.write_bytes(b"image")
+    cache_dir = tmp_path / "cache"
+    cache_dir.mkdir()
+    assistant._media_cache_dir = cache_dir
+    assistant._media_cache_files = []
+
+    monkeypatch.setattr(group_state_module, "resolve_local_media_path", lambda _url: source_path)
+    monkeypatch.setattr(
+        group_state_module,
+        "ensure_optional_write_allowed",
+        lambda *args, **kwargs: SimpleNamespace(allowed=False, message="磁盘不足"),
+    )
+
+    result = assistant._cache_media_file("file:///source.jpg", "image")
+
+    assert result == "file:///source.jpg"
+    assert list(cache_dir.iterdir()) == []
+    assert assistant._media_cache_files == []

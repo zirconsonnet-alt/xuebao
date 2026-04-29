@@ -10,6 +10,7 @@ import uuid
 from src.support.ai import config
 from src.support.cache_cleanup import cleanup_ai_media_cache
 from src.support.core import make_dict
+from src.support.storage_guard import ensure_optional_write_allowed
 
 from .common import BASE_MENU_ITEMS, GROUP_MENU_ITEMS, MenuItem
 from .message_utils import resolve_local_media_path, to_file_uri
@@ -200,6 +201,18 @@ class GroupStateMixin:
 
         suffix = resolved_local_path.suffix or (".mp4" if media_type == "video" else ".jpg")
         cached_path = Path(cache_dir) / f"{media_type}_{uuid.uuid4().hex}{suffix}"
+        try:
+            expected_bytes = resolved_local_path.stat().st_size
+        except OSError:
+            expected_bytes = None
+        decision = ensure_optional_write_allowed(
+            "AI 媒体缓存写入",
+            cached_path,
+            expected_bytes=expected_bytes,
+        )
+        if not decision.allowed:
+            print(decision.message)
+            return str(media_url)
         shutil.copy2(resolved_local_path, cached_path)
         cache_files.append(cached_path)
 
@@ -234,6 +247,13 @@ class GroupStateMixin:
 
         normalized_media_bytes = self._coerce_media_bytes(media_bytes)
         cached_path = Path(cache_dir) / f"{media_type}_{uuid.uuid4().hex}{normalized_suffix}"
+        decision = ensure_optional_write_allowed(
+            "AI 媒体字节缓存写入",
+            cached_path,
+            expected_bytes=len(normalized_media_bytes),
+        )
+        if not decision.allowed:
+            raise RuntimeError(decision.message)
         cached_path.write_bytes(normalized_media_bytes)
         cache_files.append(cached_path)
 

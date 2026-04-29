@@ -16,17 +16,32 @@ from src.support.core import Services, ai_tool
 
 from .base import BaseService, config_property, service_action
 
-try:
-    from audio2midi.basic_pitch_pitch_detector import BasicPitch as _BasicPitchClass
-    from audio2midi.librosa_pitch_detector import Normal_Pitch_Det as _NormalPitchDetectorClass
+_BasicPitchClass: Any = None
+_NormalPitchDetectorClass: Any = None
+_AUDIO2MIDI_AVAILABLE: Optional[bool] = None
+_AUDIO2MIDI_IMPORT_ERROR = ""
 
-    _AUDIO2MIDI_AVAILABLE = True
-    _AUDIO2MIDI_IMPORT_ERROR = ""
-except Exception as exc:
-    _BasicPitchClass = None
-    _NormalPitchDetectorClass = None
-    _AUDIO2MIDI_AVAILABLE = False
-    _AUDIO2MIDI_IMPORT_ERROR = str(exc)
+
+def _load_audio2midi_classes() -> None:
+    global _AUDIO2MIDI_AVAILABLE, _AUDIO2MIDI_IMPORT_ERROR
+    global _BasicPitchClass, _NormalPitchDetectorClass
+
+    if _AUDIO2MIDI_AVAILABLE is not None:
+        return
+
+    try:
+        from audio2midi.basic_pitch_pitch_detector import BasicPitch
+        from audio2midi.librosa_pitch_detector import Normal_Pitch_Det
+
+        _BasicPitchClass = BasicPitch
+        _NormalPitchDetectorClass = Normal_Pitch_Det
+        _AUDIO2MIDI_AVAILABLE = True
+        _AUDIO2MIDI_IMPORT_ERROR = ""
+    except Exception as exc:
+        _BasicPitchClass = None
+        _NormalPitchDetectorClass = None
+        _AUDIO2MIDI_AVAILABLE = False
+        _AUDIO2MIDI_IMPORT_ERROR = str(exc)
 
 
 _AUDIO_URL_RE = re.compile(
@@ -77,6 +92,7 @@ class Audio2MidiService(BaseService):
 
     @classmethod
     def _ensure_audio2midi_available(cls) -> None:
+        _load_audio2midi_classes()
         if not _AUDIO2MIDI_AVAILABLE or _BasicPitchClass is None or _NormalPitchDetectorClass is None:
             raise RuntimeError(cls._get_dependency_error_message())
 
@@ -405,8 +421,10 @@ class Audio2MidiService(BaseService):
         min_note_length: int = 2,
         threshold: float = 0.1,
     ) -> dict[str, Any]:
-        if not _AUDIO2MIDI_AVAILABLE:
-            return {"success": False, "message": self._get_dependency_error_message()}
+        try:
+            self._ensure_audio2midi_available()
+        except RuntimeError as exc:
+            return {"success": False, "message": str(exc)}
 
         source = await self._resolve_audio_source(
             user_id=user_id,

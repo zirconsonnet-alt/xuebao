@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 
 import aiohttp
 import nonebot
-from nonebot.adapters.onebot.v11 import ActionFailed, Message, MessageSegment
+from nonebot.adapters.onebot.v11 import ActionFailed
 from nonebot_plugin_alconna import UniMessage
 
 from src.support.core import ServerType, TTSType, make_dict, process_text, tool_registry
@@ -22,6 +22,17 @@ from .common import (
     config,
 )
 from .config_runtime import AIAssistantConfigRuntimeMixin
+
+
+def _describe_audio_file(path: str) -> str:
+    audio_path = Path(path)
+    try:
+        exists = audio_path.exists()
+        size = audio_path.stat().st_size if exists else 0
+        return f"path={audio_path}, exists={exists}, size={size}"
+    except Exception as exc:
+        return f"path={audio_path}, stat_error={exc!r}"
+
 
 class AIAssistantDialogRuntimeMixin:
     def _can_record_group_output(self) -> bool:
@@ -121,34 +132,20 @@ class AIAssistantDialogRuntimeMixin:
             pass
 
     async def send_audio(self, path: str, transcript: str = "", *, record_history: bool = True):
+        audio_file_debug = _describe_audio_file(path)
+        print(f"[AI TTS] 准备发送语音: {audio_file_debug}")
         try:
-            receipt: Any = None
-            runtime_bot = self._get_runtime_bot()
-            normalized_path = str(Path(path))
-            if runtime_bot is not None and getattr(self, "server_type", None) == ServerType.GROUP.value:
-                receipt = await runtime_bot.send_group_msg(
-                    group_id=int(self.server_id),
-                    message=Message(MessageSegment.record(normalized_path)),
-                )
-            elif runtime_bot is not None and getattr(self, "server_type", None) == ServerType.PRIVATE.value:
-                receipt = await runtime_bot.send_private_msg(
-                    user_id=int(self.server_id),
-                    message=Message(MessageSegment.record(normalized_path)),
-                )
-            else:
-                receipt = await UniMessage.audio(path=normalized_path).send()
+            receipt = await UniMessage.audio(path=path).send()
+            print(f"[AI TTS] 语音发送成功: receipt={receipt!r}")
             self._record_group_audio_output(
                 transcript=transcript,
                 message_result=receipt,
                 remember_only=(not record_history),
             )
-            return True
         except ActionFailed as exc:
-            print(f"[AI TTS] 发送语音失败: {exc}")
-            return False
+            print(f"[AI TTS] 语音发送失败 ActionFailed: {audio_file_debug}, error={exc!r}")
         except Exception as exc:
-            print(f"[AI TTS] 发送语音异常: {exc}")
-            return False
+            print(f"[AI TTS] 语音发送异常: {audio_file_debug}, error={exc!r}")
 
     async def send_voice_tencent(
         self,
@@ -224,14 +221,11 @@ class AIAssistantDialogRuntimeMixin:
                     music_enable,
                 )
                 if audio_path:
-                    sent = await self.send_audio(
+                    await self.send_audio(
                         audio_path,
                         transcript=display_text or message,
                         record_history=record_history,
                     )
-                    if sent:
-                        return
-                    await self.send_text(display_text, at_user_id=at_user_id, record_history=record_history)
                 else:
                     await self.send_text(display_text, at_user_id=at_user_id, record_history=record_history)
             else:

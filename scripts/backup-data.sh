@@ -11,10 +11,6 @@ fail() {
 
 load_env() {
   [ -f "$ENV_FILE" ] || fail ".env not found. Copy .env.example to .env first."
-  set -a
-  # shellcheck disable=SC1090
-  . "$ENV_FILE"
-  set +a
 }
 
 resolve_path() {
@@ -32,12 +28,37 @@ copy_if_exists() {
   fi
 }
 
+read_env_value() {
+  name="$1"
+  fallback="${2:-}"
+  awk -v key="$name" -v fallback="$fallback" '
+    BEGIN { value = fallback }
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    {
+      line = $0
+      sub(/\r$/, "", line)
+      sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+      pos = index(line, "=")
+      if (pos == 0) next
+      name = substr(line, 1, pos - 1)
+      val = substr(line, pos + 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+      if (name == key) {
+        sub(/^[[:space:]]+/, "", val)
+        sub(/[[:space:]]+$/, "", val)
+        value = val
+      }
+    }
+    END { print value }
+  ' "$ENV_FILE"
+}
+
 load_env
 
-DATA_DIR="$(resolve_path "${XUEBAO_DATA_DIR:-./data}")"
-CACHE_DIR="$(resolve_path "${XUEBAO_CACHE_DIR:-./cache}")"
-CONFIG_DIR="$(resolve_path "${XUEBAO_CONFIG_DIR:-./config}")"
-BACKUP_DIR="$(resolve_path "${XUEBAO_BACKUP_DIR:-./backups}")"
+DATA_DIR="$(resolve_path "$(read_env_value XUEBAO_DATA_DIR ./data)")"
+CACHE_DIR="$(resolve_path "$(read_env_value XUEBAO_CACHE_DIR ./cache)")"
+CONFIG_DIR="$(resolve_path "$(read_env_value XUEBAO_CONFIG_DIR ./config)")"
+BACKUP_DIR="$(resolve_path "$(read_env_value XUEBAO_BACKUP_DIR ./backups)")"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 DEST="${BACKUP_DIR}/${STAMP}"
 

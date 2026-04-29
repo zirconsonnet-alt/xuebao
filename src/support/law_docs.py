@@ -37,6 +37,7 @@ class LawOriginalSection:
 
 LAW_DOCS = {
     "laws": LawDoc("laws", "群规正文", DOCS_DIR / "laws.md"),
+    "brief": LawDoc("brief", "简明群规", DOCS_DIR / "简明群规.md"),
     "faq": LawDoc("faq", "FAQ", DOCS_DIR / "群规FAQ.md"),
 }
 
@@ -309,7 +310,7 @@ def _truncate(text: str, max_len: int) -> str:
 def search_law_docs(query: str, source: str = "all", limit: int = 3) -> Dict[str, Any]:
     query = str(query or "").strip()
     source = (source or "all").lower()
-    if source not in {"all", "laws", "faq"}:
+    if source not in {"all", "laws", "brief", "faq"}:
         source = "all"
     limit = max(1, min(int(limit or 3), 5))
 
@@ -365,7 +366,7 @@ def format_law_search_response(query: str, source: str = "all", limit: int = 3) 
     for index, match in enumerate(result["matches"], start=1):
         lines.append(f"{index}. 【{match['source_label']}】{match['title']}")
         lines.append(match["excerpt"])
-    lines.append("说明：FAQ 仅作理解辅助，正式执行以 laws.md 正文为准。")
+    lines.append("说明：简明群规和 FAQ 仅作理解辅助，正式执行以 laws.md 正文为准。")
     return "\n\n".join(lines)
 
 
@@ -455,7 +456,53 @@ def iter_law_original_sections() -> List[LawOriginalSection]:
     return sections
 
 
-def build_law_original_forward_nodes(name: str = "群规原文", uin: str = "0") -> List[Dict[str, Any]]:
+def iter_law_document_sections(key: str = "laws") -> List[LawOriginalSection]:
+    key = (key or "laws").lower()
+    if key == "laws":
+        return iter_law_original_sections()
+
+    doc = LAW_DOCS.get(key)
+    if doc is None:
+        return []
+
+    text = _read_doc(doc)
+    if not text:
+        return []
+
+    sections: List[LawOriginalSection] = []
+    current_title = ""
+    current_lines: List[str] = []
+
+    def flush() -> None:
+        nonlocal current_title, current_lines
+        content = "\n".join(current_lines).strip()
+        if content:
+            sections.append(LawOriginalSection(current_title or doc.label, content))
+        current_title = ""
+        current_lines = []
+
+    for line in text.splitlines():
+        if line.startswith("## "):
+            flush()
+            current_title = line[3:].strip()
+            current_lines = [line]
+            continue
+        if line.startswith("### "):
+            flush()
+            current_title = line[4:].strip()
+            current_lines = [line]
+            continue
+        current_lines.append(line)
+
+    flush()
+    return sections
+
+
+def build_law_document_forward_nodes(
+    key: str = "laws",
+    name: str = "群规原文",
+    uin: str = "0",
+) -> List[Dict[str, Any]]:
     return [
         {
             "type": "node",
@@ -465,8 +512,12 @@ def build_law_original_forward_nodes(name: str = "群规原文", uin: str = "0")
                 "content": section.content,
             },
         }
-        for section in iter_law_original_sections()
+        for section in iter_law_document_sections(key)
     ]
+
+
+def build_law_original_forward_nodes(name: str = "群规原文", uin: str = "0") -> List[Dict[str, Any]]:
+    return build_law_document_forward_nodes("laws", name=name, uin=uin)
 
 
 def chunk_law_forward_nodes(
@@ -571,7 +622,7 @@ def register_law_doc_tools() -> None:
     tool_registry.register(
         ToolDefinition(
             name="query_law_docs",
-            description="按需查询群规正文 laws.md 或群规 FAQ，用于回答群规、弹劾、投票、处分、权限冻结等问题。",
+            description="按需查询群规正文 laws.md、简明群规或群规 FAQ，用于回答群规、弹劾、投票、处分、权限冻结等问题。",
             parameters={
                 "type": "object",
                 "properties": {
@@ -581,8 +632,8 @@ def register_law_doc_tools() -> None:
                     },
                     "source": {
                         "type": "string",
-                        "enum": ["all", "laws", "faq"],
-                        "description": "查询范围：all 同时查正文和 FAQ，laws 只查正文，faq 只查 FAQ。",
+                        "enum": ["all", "laws", "brief", "faq"],
+                        "description": "查询范围：all 同时查正文、简明群规和 FAQ；laws 只查正文，brief 只查简明群规，faq 只查 FAQ。",
                     },
                     "limit": {
                         "type": "integer",
@@ -674,10 +725,12 @@ def register_law_doc_tools() -> None:
 
 
 __all__ = [
+    "build_law_document_forward_nodes",
     "build_law_original_forward_nodes",
     "chunk_law_forward_nodes",
     "chunk_law_original_plain_text",
     "format_law_search_response",
+    "iter_law_document_sections",
     "iter_law_original_sections",
     "register_law_doc_tools",
     "search_law_docs",

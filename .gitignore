@@ -9,5 +9,10 @@ venv/
 env/
 .env
 .env.*
+!.env.example
+data/
+cache/
+config/
+ytb_cookies.txt
 logs/
 *.log

@@ -16,6 +16,7 @@ from nonebot.log import logger
 from src.support.cache_cleanup import cleanup_group_temp_cache
 from src.support.core import Services
 from src.support.group import get_name_simple as get_name, wait_for_event, run_flow
+from src.support.storage_guard import ensure_optional_write_allowed
 
 from .base import BaseService, config_property, service_action, service_notice
 
@@ -258,6 +259,11 @@ class CompositionService(BaseService):
             cleanup_group_temp_cache(int(self.group.group_id), protected_paths=[target_mp3_path])
             return target_mp3_path, cache_key
 
+        decision = ensure_optional_write_allowed("作品发布源音频下载缓存写入", target_mp3_path)
+        if not decision.allowed:
+            logger.warning(decision.message)
+            return None, cache_key
+
         source_path = await self.group.download_file(uploaded_file)
         if not source_path:
             logger.warning(f"作品发布下载源音频失败：{self._extract_group_file_name(uploaded_file)}")
@@ -278,6 +284,19 @@ class CompositionService(BaseService):
     @staticmethod
     async def _convert_audio_to_mp3(source_path: Path, target_path: Path) -> Path | None:
         if not source_path.exists():
+            return None
+
+        try:
+            expected_bytes = source_path.stat().st_size
+        except OSError:
+            expected_bytes = None
+        decision = ensure_optional_write_allowed(
+            "作品发布转码缓存写入",
+            target_path,
+            expected_bytes=expected_bytes,
+        )
+        if not decision.allowed:
+            logger.warning(decision.message)
             return None
 
         target_path.parent.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 import sys
+from types import SimpleNamespace
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -92,3 +93,24 @@ def test_api_speech_generator_preserves_absolute_audio_url_and_query() -> None:
     )
 
     assert resolved == "https://cdn.example.com/audio/file.wav?token=abc123"
+
+
+def test_local_speech_generator_refuses_before_creating_output_dir(tmp_path: Path, monkeypatch) -> None:
+    class FakeCommunicate:
+        def __init__(self, text: str, voice: str):
+            raise AssertionError("低磁盘时不应创建语音任务")
+
+    monkeypatch.setattr(ai_module.edge_tts, "Communicate", FakeCommunicate)
+    monkeypatch.setattr(
+        ai_module,
+        "ensure_optional_write_allowed",
+        lambda *args, **kwargs: SimpleNamespace(allowed=False, message="磁盘不足"),
+    )
+
+    generator = ai_module.LocalSpeechGenerator()
+    generator.voice_path = tmp_path / "speech"
+
+    result = asyncio.run(generator.gen_speech("你好", "voice-a"))
+
+    assert result is None
+    assert not generator.voice_path.exists()

@@ -26,6 +26,7 @@ RUN apt-get update \
 
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --only main --no-interaction --no-ansi
+RUN python -m playwright install --with-deps chromium
 
 COPY bot.py ./
 COPY src ./src

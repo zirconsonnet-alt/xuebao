@@ -264,3 +264,46 @@ def test_composition_service_essence_window_extends_to_24_hours(tmp_path: Path) 
     service = _make_service(tmp_path, DummyGroup(tmp_path, DummyGateway()))
 
     assert service.CARD_MAP_TTL_SECONDS == 24 * 60 * 60
+
+
+def test_composition_music_card_refuses_before_downloading_when_storage_guard_blocks(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.services.composition as composition_module
+
+    group = DummyGroup(
+        tmp_path,
+        DummyGateway(),
+        uploaded_files=[
+            {
+                "file_id": "origin-flac",
+                "busid": 1,
+                "file_name": "作品.flac",
+                "uploader": 456,
+            }
+        ],
+    )
+    service = _make_service(tmp_path, group)
+    event = SimpleNamespace(
+        user_id=456,
+        group_id=123,
+        file=SimpleNamespace(name="作品.flac"),
+    )
+
+    async def fail_download(_file_entry):
+        raise AssertionError("低磁盘时不应下载源音频")
+
+    group.download_file = fail_download
+    monkeypatch.setattr(
+        composition_module,
+        "ensure_optional_write_allowed",
+        lambda *args, **kwargs: SimpleNamespace(allowed=False, message="磁盘不足"),
+    )
+
+    audio_path, cache_key = asyncio.run(
+        service._ensure_transcoded_audio_file(group._uploaded_files[0], event)
+    )
+
+    assert audio_path is None
+    assert cache_key == "origin-flac"

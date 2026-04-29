@@ -151,3 +151,30 @@ def test_bison_bilibili_video_without_music_meta_skips_default_message() -> None
     )
 
     assert messages == []
+
+
+def test_bison_music_card_refuses_transcode_when_storage_guard_blocks(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import src.services.bison as bison_module
+
+    source_path = tmp_path / "source.m4s"
+    source_path.write_bytes(b"source")
+    target_path = tmp_path / "audio" / "out.mp3"
+
+    monkeypatch.setattr(
+        bison_module,
+        "ensure_optional_write_allowed",
+        lambda *args, **kwargs: SimpleNamespace(allowed=False, message="磁盘不足"),
+    )
+
+    async def fail_exec(*args, **kwargs):
+        raise AssertionError("低磁盘时不应启动 ffmpeg")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fail_exec)
+
+    result = asyncio.run(bison_module._convert_bison_audio_to_mp3(source_path, target_path))
+
+    assert result is None
+    assert not target_path.parent.exists()

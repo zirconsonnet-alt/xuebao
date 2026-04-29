@@ -28,6 +28,31 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "$1 is required but was not found."
 }
 
+read_env_value() {
+  name="$1"
+  fallback="${2:-}"
+  awk -v key="$name" -v fallback="$fallback" '
+    BEGIN { value = fallback }
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    {
+      line = $0
+      sub(/\r$/, "", line)
+      sub(/^[[:space:]]*export[[:space:]]+/, "", line)
+      pos = index(line, "=")
+      if (pos == 0) next
+      name = substr(line, 1, pos - 1)
+      val = substr(line, pos + 1)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+      if (name == key) {
+        sub(/^[[:space:]]+/, "", val)
+        sub(/[[:space:]]+$/, "", val)
+        value = val
+      }
+    }
+    END { print value }
+  ' "$ENV_FILE"
+}
+
 cd "$ROOT_DIR"
 
 [ "$(uname -s)" != "Linux" ] && fail "scripts/deploy.sh is intended for Linux servers."
@@ -38,19 +63,14 @@ docker compose version >/dev/null 2>&1 || fail "Docker Compose plugin is require
 
 scripts/validate-deploy-env.sh
 
-set -a
-# shellcheck disable=SC1090
-. "$ENV_FILE"
-set +a
-
-DATA_DIR="$(resolve_path "${XUEBAO_DATA_DIR:-./data}")"
-CACHE_DIR="$(resolve_path "${XUEBAO_CACHE_DIR:-./cache}")"
-CONFIG_DIR="$(resolve_path "${XUEBAO_CONFIG_DIR:-./config}")"
-BACKUP_DIR="$(resolve_path "${XUEBAO_BACKUP_DIR:-./backups}")"
+DATA_DIR="$(resolve_path "$(read_env_value XUEBAO_DATA_DIR ./data)")"
+CACHE_DIR="$(resolve_path "$(read_env_value XUEBAO_CACHE_DIR ./cache)")"
+CONFIG_DIR="$(resolve_path "$(read_env_value XUEBAO_CONFIG_DIR ./config)")"
+BACKUP_DIR="$(resolve_path "$(read_env_value XUEBAO_BACKUP_DIR ./backups)")"
 
 mkdir -p "$DATA_DIR" "$CACHE_DIR" "$CONFIG_DIR" "$BACKUP_DIR"
 
-if [ "${XUEBAO_BACKUP_ON_DEPLOY:-true}" = "true" ]; then
+if [ "$(read_env_value XUEBAO_BACKUP_ON_DEPLOY true)" = "true" ]; then
   scripts/backup-data.sh
 fi
 

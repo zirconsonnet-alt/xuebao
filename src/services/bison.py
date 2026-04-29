@@ -23,6 +23,7 @@ from nonebot.plugin import get_plugin, load_plugin
 from src.support.cache_cleanup import cleanup_bison_music_card_cache
 from src.support.core import Services, ai_tool
 from src.support.group import run_flow, wait_for
+from src.support.storage_guard import ensure_optional_write_allowed
 from .base import BaseService, config_property, service_action
 
 
@@ -415,11 +416,23 @@ def _get_bison_music_cache_key(video_url: str) -> str | None:
 
 
 async def _download_bison_file(url: str, save_path: Path, headers: dict[str, str] | None = None) -> Path | None:
-    save_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=120.0) as client:
             async with client.stream("GET", url, headers=headers) as response:
                 response.raise_for_status()
+                try:
+                    expected_bytes = int(response.headers.get("content-length", "0") or 0)
+                except ValueError:
+                    expected_bytes = 0
+                decision = ensure_optional_write_allowed(
+                    "Bison 音频下载缓存写入",
+                    save_path,
+                    expected_bytes=expected_bytes or None,
+                )
+                if not decision.allowed:
+                    logger.warning(decision.message)
+                    return None
+                save_path.parent.mkdir(parents=True, exist_ok=True)
                 with save_path.open("wb") as file_obj:
                     async for chunk in response.aiter_bytes():
                         file_obj.write(chunk)
@@ -431,6 +444,19 @@ async def _download_bison_file(url: str, save_path: Path, headers: dict[str, str
 
 async def _convert_bison_audio_to_mp3(source_path: Path, target_path: Path) -> Path | None:
     if not source_path.exists():
+        return None
+
+    try:
+        expected_bytes = source_path.stat().st_size
+    except OSError:
+        expected_bytes = None
+    decision = ensure_optional_write_allowed(
+        "Bison 音频转码缓存写入",
+        target_path,
+        expected_bytes=expected_bytes,
+    )
+    if not decision.allowed:
+        logger.warning(decision.message)
         return None
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -670,6 +696,20 @@ async def _ensure_bison_music_fallback_audio_file(cache_key: str, title: str) ->
         generated_file = Path(generated_path)
         if not generated_file.exists():
             logger.warning(f"Bison 生成音乐卡片提示语音失败：{cache_key} 文件不存在：{generated_file}")
+            return None, fallback_cache_key
+
+        try:
+            expected_bytes = generated_file.stat().st_size
+        except OSError:
+            expected_bytes = None
+        decision = ensure_optional_write_allowed(
+            "Bison 提示语音缓存写入",
+            target_mp3_path,
+            expected_bytes=expected_bytes,
+        )
+        if not decision.allowed:
+            logger.warning(decision.message)
+            generated_file.unlink(missing_ok=True)
             return None, fallback_cache_key
 
         target_mp3_path.parent.mkdir(parents=True, exist_ok=True)

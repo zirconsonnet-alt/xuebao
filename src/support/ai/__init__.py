@@ -40,12 +40,23 @@ from .model_chains import (
 )
 from ..cache_cleanup import cleanup_speech_cache
 from ..core import VisionGateway
+from ..storage_guard import ensure_optional_write_allowed
 
 
 _SEARCH_SPIDER_LOCK = asyncio.Lock()
 
 # LLM / 视觉 / 画图模型列表统一看这里。
 MODEL_LISTS_CONFIG_PATH = AI_MODEL_LISTS_CONFIG_PATH
+
+
+def _describe_audio_file(path: str | Path) -> str:
+    audio_path = Path(path)
+    try:
+        exists = audio_path.exists()
+        size = audio_path.stat().st_size if exists else 0
+        return f"path={audio_path}, exists={exists}, size={size}"
+    except Exception as exc:
+        return f"path={audio_path}, stat_error={exc!r}"
 
 @dataclass
 class AIAssistantConfig:
@@ -520,13 +531,34 @@ class SpeechGenerator(ABC):
 
     async def gen_speech(self, text, voice_id, music_enable=False):
         try:
-            print("准备生成音频")
+            print(
+                "[AI TTS] 开始生成音频: "
+                f"generator={type(self).__name__}, voice_id={voice_id}, "
+                f"music_enable={music_enable}, text_length={len(text or '')}"
+            )
             speech_path = await self.text_to_speech(text, voice_id)
+            if speech_path:
+                print(f"[AI TTS] TTS 生成完成: {_describe_audio_file(speech_path)}")
+            else:
+                print("[AI TTS] TTS 未返回音频路径")
+                return None
         except Exception as exc:
-            print(exc)
+            print(f"[AI TTS] TTS 生成异常: {exc!r}")
+            traceback.print_exc()
             return None
         if music_enable:
-            result_path = await self.mix_music(speech_path)
+            try:
+                print(f"[AI TTS] 准备混入背景音乐: {_describe_audio_file(speech_path)}")
+                result_path = await self.mix_music(speech_path)
+                if result_path:
+                    print(f"[AI TTS] 背景音乐处理完成: {_describe_audio_file(result_path)}")
+                else:
+                    print("[AI TTS] 背景音乐处理未返回音频路径")
+                    return None
+            except Exception as exc:
+                print(f"[AI TTS] 背景音乐处理异常: {exc!r}")
+                traceback.print_exc()
+                return None
         else:
             result_path = speech_path
         if result_path and Path(self.voice_path) == Path("data") / "speech":
@@ -534,8 +566,12 @@ class SpeechGenerator(ABC):
         return result_path
 
     def _new_voice_file_path(self, prefix: str, suffix: str = ".mp3") -> Path:
+        file_path = self.voice_path / f"{prefix}_{uuid.uuid4().hex}{suffix}"
+        decision = ensure_optional_write_allowed("语音缓存写入", file_path)
+        if not decision.allowed:
+            raise RuntimeError(decision.message)
         self.voice_path.mkdir(parents=True, exist_ok=True)
-        return self.voice_path / f"{prefix}_{uuid.uuid4().hex}{suffix}"
+        return file_path
 
     @staticmethod
     def _cleanup_files(paths: List[str]) -> None:
@@ -548,13 +584,21 @@ class SpeechGenerator(ABC):
     async def mix_music(self, speech_path):
         speech_file = Path(speech_path)
         if not self.music_path.exists():
+            print(f"[AI TTS] 背景音乐目录不存在，跳过混音: bgm_dir={self.music_path}")
             return str(speech_file)
         mp3_files = [file_path for file_path in self.music_path.iterdir() if file_path.is_file() and file_path.suffix.lower() == ".mp3"]
         if not mp3_files:
+            print(f"[AI TTS] 背景音乐目录没有 mp3，跳过混音: bgm_dir={self.music_path}")
             return str(speech_file)
 
         selected_mp3_path = random.choice(mp3_files)
         merged_path = self._new_voice_file_path("merged")
+        print(
+            "[AI TTS] 启动 ffmpeg 混音: "
+            f"speech={_describe_audio_file(speech_file)}, "
+            f"bgm={_describe_audio_file(selected_mp3_path)}, "
+            f"output={merged_path}"
+        )
         try:
             process = await asyncio.create_subprocess_exec(
                 "ffmpeg",
@@ -573,19 +617,24 @@ class SpeechGenerator(ABC):
             )
             _, stderr = await process.communicate()
         except Exception as exc:
-            print(f"Error mixing music: {exc}")
+            print(f"[AI TTS] ffmpeg 混音异常: {exc!r}")
+            traceback.print_exc()
             return None
         if process.returncode != 0:
-            print(f"Error mixing music: {stderr.decode('utf-8', errors='ignore')}")
+            error_text = stderr.decode("utf-8", errors="ignore")[-2000:]
+            print(f"[AI TTS] ffmpeg 混音失败: returncode={process.returncode}, stderr={error_text}")
             return None
+        print(f"[AI TTS] ffmpeg 混音成功: {_describe_audio_file(merged_path)}")
         return str(merged_path)
 
 
 class LocalSpeechGenerator(SpeechGenerator):
     async def text_to_speech(self, text, voice_id):
         full_path = self._new_voice_file_path("speech")
+        print(f"[AI TTS] Edge TTS 开始保存: voice_id={voice_id}, output={full_path}")
         communicate = edge_tts.Communicate(text=text, voice=voice_id)
         await communicate.save(str(full_path))
+        print(f"[AI TTS] Edge TTS 保存完成: {_describe_audio_file(full_path)}")
         return str(full_path)
 
 
@@ -612,14 +661,18 @@ class ApiSpeechGenerator(SpeechGenerator):
             if audio_path:
                 audio_files.append(audio_path)
         if not audio_files:
+            print("[AI TTS] API TTS 没有生成可用切片")
             return ""
         output_file = self._new_voice_file_path("speech")
+        print(f"[AI TTS] API TTS 准备合并切片: count={len(audio_files)}, output={output_file}")
         try:
             merged = self.merge_audio_files(audio_files, str(output_file))
         finally:
             self._cleanup_files(audio_files)
         if not merged:
+            print("[AI TTS] API TTS 切片合并失败")
             return ""
+        print(f"[AI TTS] API TTS 合并完成: {_describe_audio_file(output_file)}")
         return str(output_file)
 
     def _resolve_audio_download_url(self, audio_url: str) -> str:
@@ -675,8 +728,20 @@ class ApiSpeechGenerator(SpeechGenerator):
                         print(f"音频下载失败: {audio_resp.status}")
                         return ""
 
-                    self.voice_path.mkdir(parents=True, exist_ok=True)
                     file_path = self.voice_path / f"slice_{request_id}_{index}.mp3"
+                    try:
+                        expected_bytes = int(audio_resp.headers.get("content-length", "0") or 0)
+                    except ValueError:
+                        expected_bytes = 0
+                    decision = ensure_optional_write_allowed(
+                        "语音 API 切片缓存写入",
+                        file_path,
+                        expected_bytes=expected_bytes or None,
+                    )
+                    if not decision.allowed:
+                        print(decision.message)
+                        return ""
+                    self.voice_path.mkdir(parents=True, exist_ok=True)
                     with open(file_path, "wb") as file_obj:
                         file_obj.write(await audio_resp.read())
                     return str(file_path)

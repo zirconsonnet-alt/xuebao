@@ -181,6 +181,16 @@ def _cleanup_root(
     return result
 
 
+def cleanup_cache_root(
+    root: Path | str,
+    policy: CacheCleanupPolicy,
+    *,
+    protected_paths: Iterable[Path | str] | None = None,
+) -> CacheCleanupResult:
+    """按既有受限根目录规则清理显式授权的缓存目录。"""
+    return _cleanup_root(root, policy, protected_paths=protected_paths)
+
+
 def cleanup_ai_media_cache(
     *,
     protected_paths: Iterable[Path | str] | None = None,
